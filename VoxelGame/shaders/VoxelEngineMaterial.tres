@@ -1,0 +1,7 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://dhtyr4p5bd5x1"]
+
+[ext_resource type="Shader" path="res://shaders/VoxelEngine.gdshader" id="1_w87kh"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_w87kh")

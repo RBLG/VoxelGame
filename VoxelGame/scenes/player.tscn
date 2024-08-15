@@ -1,0 +1,32 @@
+[gd_scene load_steps=6 format=3 uid="uid://sjpnhsmk5jc"]
+
+[ext_resource type="Material" uid="uid://dhtyr4p5bd5x1" path="res://shaders/VoxelEngineMaterial.tres" id="1_80kfb"]
+[ext_resource type="Script" path="res://scripts/Player.cs" id="1_ca1al"]
+[ext_resource type="Script" path="res://scripts/VoxelEngine.cs" id="2_k24j3"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_3nd6u"]
+size = Vector3(1, 2, 1)
+
+[sub_resource type="QuadMesh" id="QuadMesh_2nhot"]
+material = ExtResource("1_80kfb")
+flip_faces = true
+size = Vector2(2, 2)
+
+[node name="Player" type="CharacterBody3D"]
+motion_mode = 1
+script = ExtResource("1_ca1al")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.441538, 0)
+shape = SubResource("BoxShape3D_3nd6u")
+disabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+
+[node name="VoxelEngine" type="MeshInstance3D" parent="Camera3D"]
+extra_cull_margin = 16384.0
+ignore_occlusion_culling = true
+gi_mode = 0
+mesh = SubResource("QuadMesh_2nhot")
+skeleton = NodePath("")
+script = ExtResource("2_k24j3")
