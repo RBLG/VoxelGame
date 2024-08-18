@@ -146,7 +146,7 @@ public class WorldBadLightEngine {
         orders = orders.OrderBy((o) => o.Emit.Max()).ToList();
         int it = 0;
         foreach (var order in orders) {
-            if (16 <= it) { break; }
+            if (32 <= it) { break; }
             nextsources.Enqueue(order);
             changemap[order.Source] = new(0);
             it++;
