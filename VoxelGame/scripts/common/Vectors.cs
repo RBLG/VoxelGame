@@ -57,6 +57,7 @@ public struct Vector3T<TYPE> where TYPE : INumber<TYPE> {
     public static Vector3T<TYPE> operator -(Vector3T<TYPE> l) => new(-l.X, -l.Y, -l.Z);
     public static Vector3T<TYPE> operator +(Vector3T<TYPE> l, (TYPE X, TYPE Y, TYPE Z) r) => new(l.X + r.X, l.Y + r.Y, l.Z + r.Z);
     public static Vector3T<TYPE> operator -(Vector3T<TYPE> l, (TYPE X, TYPE Y, TYPE Z) r) => new(l.X - r.X, l.Y - r.Y, l.Z - r.Z);
+    public static Vector3T<TYPE> operator *(Vector3T<TYPE> l, (TYPE X, TYPE Y, TYPE Z) r) => new(l.X * r.X, l.Y * r.Y, l.Z * r.Z);
 
     public override readonly bool Equals(object? obj) => base.Equals(obj);
 

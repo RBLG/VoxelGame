@@ -51,13 +51,13 @@ public class WorldBadLightEngine {
     public void DoLighting() {
         WorldData<Vector3T<float>> maincmap = new(world, () => new(0f));
         WorldData<Vector3T<float>> emitmap = new(world, () => new(0f));
-        emitmap[new(+02, +02, -9)] = maincmap[new(+02, +02, -9)] = RandomColor() * 10;
-        emitmap[new(+11, +32, 10)] = maincmap[new(+11, +32, 10)] = RandomColor() * 10;
-        emitmap[new(+43, -12, 13)] = maincmap[new(+43, -12, 13)] = RandomColor() * 10;
-        emitmap[new(-30, +08, -3)] = maincmap[new(-30, +08, -3)] = RandomColor() * 10;
-        //nextsources.Enqueue(new(new(+02, +02, -9), maincmap[new(+02, +02, -9)], new(0))); ;
-        //nextsources.Enqueue(new(new(+11, +32, 10), maincmap[new(+11, +32, 10)], new(0)));
-        //nextsources.Enqueue(new(new(+43, -12, 13), maincmap[new(+43, -12, 13)], new(0)));
+        maincmap[new(+02, +02, -9)] = RandomColor() * 80;
+        maincmap[new(+11, +32, 10)] = RandomColor() * 130;
+        maincmap[new(+43, -12, 13)] = RandomColor() * 200;
+        //maincmap[new(-30, +08, -3)] = RandomColor() * 10;
+        nextsources.Enqueue(new(new(+02, +02, -9), maincmap[new(+02, +02, -9)], new(0))); ;
+        nextsources.Enqueue(new(new(+11, +32, 10), maincmap[new(+11, +32, 10)], new(0)));
+        nextsources.Enqueue(new(new(+43, -12, 13), maincmap[new(+43, -12, 13)], new(0)));
         //nextsources.Enqueue(new(new(-30, +08, -3), maincmap[new(-30, +08, -3)], new(0)));
 
         bool done = false;
@@ -180,16 +180,15 @@ public class WorldBadLightEngine {
             //union incl filter
             // !(filter == 0) && filter.All(dir, (v, d) => v == 0 || v == -d); 
             if (filtered) {
-                //continue;
+                continue;
             }
 
             var adir = dir.Abs();
             var spos = pos + dir;
-            var maxs2 = dir.Do(maxs, spos, (d, max, spo) => (d == 0) ? spo : max); //(maxs * adir).Max(spos);
+            var maxs2 = dir.Do(maxs, spos, (d, max, spo) => (d == 0) ? spo : max);
             var mins2 = dir.Do(mins, spos, (d, min, spo) => (d == 0) ? spo : min);
 
             var incr = dir.Do((val) => (0 <= val) ? 1 : -1);
-            //GD.Print("starting new quadrant iteration");
             for (long itx = spos.X; IsInBoundII(itx, mins2.X, maxs2.X); itx += incr.X) {
                 for (long ity = spos.Y; IsInBoundII(ity, mins2.Y, maxs2.Y); ity += incr.Y) {
                     for (long itz = spos.Z; IsInBoundII(itz, mins2.Z, maxs2.Z); itz += incr.Z) {
@@ -237,16 +236,16 @@ public class WorldBadLightEngine {
             var l4 = adjs[3] ? GetLambert(dist, new(-1, 0, 0), filter) : 0;
             var l5 = adjs[4] ? GetLambert(dist, new(0, -1, 0), filter) : 0;
             var l6 = adjs[5] ? GetLambert(dist, new(0, 0, -1), filter) : 0;
-            float avglambert = (l1 + l2 + l3 + l4 + l5 + l6) / adjs.Sum();
-            //var bestlambert = Math.Max(Math.Max(Mathf.Max(l1, l2), Mathf.Max(l3, l4)), Mathf.Max(l5, l6));
+            //float avglambert = (l1 + l2 + l3 + l4 + l5 + l6) / adjs.Sum();
+            float bestlambert = Math.Max(Math.Max(Mathf.Max(l1, l2), Mathf.Max(l3, l4)), Mathf.Max(l5, l6));
 
             float lval = lmap[wind, cind];
             //lval = (lval < 0.5) ? 0 : 1;
             //lval /= MathF.Sqrt(dist.Square().Sum());
             lval /= (dist - filter).Square().Sum();
-            var lcol = lval * emit * 1f;
+            var lcol = lval * emit * 0.6f;
 
-            cmap[wind, cind] = lcol * avglambert;
+            cmap[wind, cind] = lcol * bestlambert;
         });
     }
 
@@ -255,19 +254,16 @@ public class WorldBadLightEngine {
 
         if (!(tfilter == tnormal)) {
             tdist += tnormal.Do(tfilter, (n, f) => (n == f) ? n : (n - f));
-            //tdist += tnormal;
         }
 
         Vector3 dist = new(tdist.X, tdist.Y, tdist.Z);
         Vector3 normal = new(tnormal.X, tnormal.Y, tnormal.Z);
-        //Vector3 filter = new(tfilter.X, tfilter.Y, tfilter.Z);
-
-        //dist += (normal - filter) * 0.5f;
 
         dist = dist.Normalized();
         var mult = dist * normal;
-        return Math.Max(mult.X + mult.Y + mult.Z, 0) + 0.000001f; //Ax* Bx +Ay * By + Az * Bz
-                                                                  //return Math.Max(Mathf.Cos(dist.AngleTo(normal)), 0);
+        //Ax* Bx +Ay * By + Az * Bz
+        return Math.Max(mult.X + mult.Y + mult.Z, 0);
+        //return Math.Max(Mathf.Cos(dist.AngleTo(normal)), 0);
     }
 
     public void MergeColormap(WorldData<Vector3T<float>> maincmap, WorldData<Vector3T<float>> changemap, WorldData<Vector3T<float>> cmap) {

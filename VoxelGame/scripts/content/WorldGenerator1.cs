@@ -30,5 +30,17 @@ public class WorldGenerator1 {
         Opaque = opaque;
         return nvox;
     }
+
+    public void InsertFeatures(World world) {
+        Vector3T<long>[] list = new Vector3T<long>[] { };
+
+
+        foreach (var xyz in list) {
+            world[xyz].color = new(1);
+            world.Opacity[xyz] = true;
+        }
+
+
+    }
 }
 

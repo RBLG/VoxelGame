@@ -7,6 +7,7 @@
 [node name="Node3D" type="Node3D"]
 
 [node name="Player" parent="." instance=ExtResource("1_ksxky")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.4756, 23.6274, 23.7018)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44.945, 3, 3.06882)

@@ -29,6 +29,7 @@ public class World {
             chunks[xyz] = generator.GenerateChunk(xyz, out var OpacityChunk);
             Opacity.chunks[xyz] = OpacityChunk;
         });
+        //generator.InsertFeatures(this);
         ForAll((xyz) => {
             bool a1 = (xyz.X != Maxs.X) && Opacity[xyz + (1, 0, 0)];
             bool a2 = (xyz.Y != Maxs.Y) && Opacity[xyz + (0, 1, 0)];

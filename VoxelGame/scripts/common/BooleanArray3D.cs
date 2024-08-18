@@ -43,6 +43,8 @@ public class BooleanArray3D {
         }
     }
 
+    public ulong Data => data;
+
     public int Sum() => BitOperations.PopCount(data);
 
 
