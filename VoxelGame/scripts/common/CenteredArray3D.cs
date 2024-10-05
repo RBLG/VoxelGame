@@ -1,74 +1,70 @@
 using Godot;
 using System;
+using VoxelGame.scripts.content;
 
 namespace VoxelGame.scripts.common;
 
-public class CenteredArray3D<OBJ> {
-    private readonly OBJ[] array;
-	private readonly uint rowLength;
-	private readonly uint planeLength;
-	private readonly uint totalLength;
-	public readonly Vector3T<uint> Size;
-	public readonly Vector3T<long> Center;
+public class CenteredArray3D<OBJ> : IArray3d<OBJ> {
+    private readonly OBJ[] data;
+    private readonly int rowLength;
+    private readonly int planeLength;
+    private readonly int totalLength;
+    public Vector3T<int> Size { get; }
+    public Vector3T<int> Center { get; }
 
-	public uint Length { get => totalLength; }
+    public int Length { get => totalLength; }
 
-	public CenteredArray3D(Vector3T<uint> size) : this(size, new(0)) { }
-	public CenteredArray3D(Vector3T<uint> size, Vector3T<long> center) {
-		rowLength = size.X;
-		planeLength = size.X * size.Y;
-		totalLength = size.X * size.Y * size.Z;
-		Size = size;
-		Center = center;
-		array = new OBJ[totalLength];
-	}
+    public OBJ[] Data => data;
 
-	public void Initialize() => array.Initialize();
+    public CenteredArray3D(Vector3T<int> size) : this(size, new(0)) { }
+    public CenteredArray3D(Vector3T<int> size, Vector3T<int> center) {
+        rowLength = size.X;
+        planeLength = size.X * size.Y;
+        totalLength = size.X * size.Y * size.Z;
+        Size = size;
+        Center = center;
+        data = new OBJ[totalLength];
+    }
 
-	public uint GetIndexFromXyz(long x, long y, long z) {
-		uint x2 = (uint)(x + Center.X);
-		uint y2 = (uint)(y + Center.Y);
-		uint z2 = (uint)(z + Center.Z);
-		uint index = x2 + y2 * rowLength + z2 * planeLength;
+    public void Initialize() => data.Initialize();
 
-		if (index < 0 || totalLength <= index) {
-			GD.Print($"xyz:{x2}:{y2}:{z2} while c:{Center.X}:{Center.Y}:{Center.Z} and s:{Size.X}:{Size.Y}:{Size.Z}");
-		}
+    public int GetIndexFromXyz(Vector3T<int> xyz) {
+        int x2 = xyz.X + Center.X;
+        int y2 = xyz.Y + Center.Y;
+        int z2 = xyz.Z + Center.Z;
+        int index = x2 + y2 * rowLength + z2 * planeLength;
 
-		return index;
-	}
+        if (index < 0 || totalLength <= index) {
+            GD.Print($"xyz:{x2}:{y2}:{z2} while c:{Center.X}:{Center.Y}:{Center.Z} and s:{Size.X}:{Size.Y}:{Size.Z}");
+        }
 
-	public Vector3T<long> GetXyzFromIndex(uint it) {
-		uint z = it;
-		uint y = z % planeLength;
-		uint x = y % rowLength;
-		z /= planeLength;
-		y /= rowLength;
-		return new Vector3T<long>(x, y, z) - Center;
-	}
+        return index;
+    }
 
-	public OBJ this[long x, long y, long z] {
-		get => array[GetIndexFromXyz(x, y, z)];
-		set => array[GetIndexFromXyz(x, y, z)] = value;
-	}
+    public Vector3T<int> GetXyzFromIndex(int it) {
+        int z = it;
+        int y = z % planeLength;
+        int x = y % rowLength;
+        z /= planeLength;
+        y /= rowLength;
+        return -Center + (x, y, z);
+    }
 
-	public OBJ this[Vector3T<long> xyz] {
-		get => array[GetIndexFromXyz(xyz.X, xyz.Y, xyz.Z)];
-		set => array[GetIndexFromXyz(xyz.X, xyz.Y, xyz.Z)] = value;
-	}
+    public OBJ this[Vector3T<int> xyz] {
+        get => this[GetIndexFromXyz(xyz)];
+        set => this[GetIndexFromXyz(xyz)] = value;
+    }
 
-	public OBJ this[uint i] {
-		get => array[i];
-		set => array[i] = value;
-	}
+    public OBJ this[int i] {
+        get => data[i];
+        set => data[i] = value;
+    }
 
-	public void ForAll(Action<Vector3T<long>> action) {
-		for (long itx = 0; itx < Size.X; itx++) {
-			for (long ity = 0; ity < Size.Y; ity++) {
-				for (long itz = 0; itz < Size.Z; itz++) {
-					action(new Vector3T<long>(itx, ity, itz) - Center);
-				}
-			}
-		}
-	}
+    public void ForAll(Action<Vector3T<int>> action) => IArray3d<OBJ>.ForAll(Size, (xyz) => action(xyz - Center));
+
+    public void InitAll(Func<int, OBJ> filler) {
+        for (int it = 0; it < totalLength; it++) {
+            data[it] = filler(it);
+        }
+    }
 }

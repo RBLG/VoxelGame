@@ -3,21 +3,34 @@ using VoxelGame.scripts.common;
 
 namespace VoxelGame.scripts.content;
 public class WorldGenerator1 {
-    public Chunk GenerateChunk(Vector3T<long> pos, out BooleanArray3D OpacityData) {
-        Chunk nchunk = new();
+    WorldSettings1 settings = new();
+
+    public BinaryArray3d<Voxel> GenerateChunk(Vector3T<int> pos, out BooleanArray3D OpacityData) {
+        BinaryArray3d<Voxel> nchunk = new(new(2));
         BooleanArray3D Opacities = new();
-        nchunk.voxels.ForAll((xyz) => {
-            Vector3T<long> xyz2 = xyz + pos * Chunk.LSize;
-            nchunk.voxels[xyz] = GenerateVoxel(xyz2, out var opaque);
-            Opacities[xyz] = opaque;
+        IArray3d<Voxel> nchunk2 = nchunk;
+        nchunk2.ForAll((xyz) => {
+            int ind = nchunk.GetIndexFromXyz(xyz);
+            Vector3T<int> xyz2 = xyz + pos * settings.ChunkSize;
+            nchunk[ind] = GenerateVoxel(xyz2, out var opaque);
+            Opacities[ind] = opaque;
         });
         OpacityData = Opacities;
         return nchunk;
     }
 
-    public Voxel GenerateVoxel(Vector3T<long> pos, out bool Opaque) {
-        bool opaque = !(-10 < pos.Z && GD.Randf() < 0.995);
-        opaque &= (pos.X != 0 && pos.X != -1) || (pos.Y != 0 && pos.Y != -1);
+    public Voxel GenerateVoxel(Vector3T<int> pos, out bool Opaque) {
+        bool opaque = pos.Z <= -10;
+
+        long tot = (pos.X & 63L) + (pos.Y & 63L);
+        //opaque |= (pos.Z < tot - 24);
+
+        if (!opaque) {
+            float dist = Mathf.Sqrt(pos.LengthSquared()) * 0.02f;
+            float chance = 1.05f - (dist / (1 + dist))*0.1f;
+            opaque |= chance < GD.Randf();
+        }
+
 
         //Vector3T<float> col = new(GD.Randf(), GD.Randf(), GD.Randf());
         Vector3T<float> col = new(1, 1, 1);
@@ -32,14 +45,23 @@ public class WorldGenerator1 {
     }
 
     public void InsertFeatures(World world) {
-        Vector3T<long>[] list = new Vector3T<long>[] { };
+        for (int itx = 20; itx < 53; itx++) {
+            for (int itz = -10; itz < 13; itz++) {
+                Vector3T<int> xyz = new(itx, -30, itz);
 
-
-        foreach (var xyz in list) {
-            world[xyz].color = new(1);
-            world.Opacity[xyz] = true;
+                world.chunks[xyz].color = new(0.8f, 0.7f, 0.6f);
+                world.Opacity[xyz] = true;
+            }
         }
 
+        for (int itx = 15; itx < 53; itx++) {
+            for (int itz = -10; itz < 20; itz++) {
+                Vector3T<int> xyz = new(itx, -40, itz);
+
+                world.chunks[xyz].color = new(0.8f, 0.7f, 0.6f);
+                world.Opacity[xyz] = true;
+            }
+        }
 
     }
 }

@@ -3,26 +3,47 @@ using System;
 
 namespace VoxelGame.scripts.common;
 
-public class BinaryArray3D<OBJ> : Array3D<OBJ> {
+public class BinaryArray3d<OBJ> : IArray3d<OBJ> {
+    protected readonly OBJ[] data;
+
+    public Vector3T<int> Size { get; }
     public readonly Vector3T<byte> BitSize;
     protected readonly int BitSizeXY;
+    protected readonly Vector3T<int> Masks = new();
 
-    protected readonly Vector3T<uint> Masks = new();
-
-    public BinaryArray3D(Vector3T<byte> bsize) : base(bsize.Do((val) => 1u << val)) {
+    public BinaryArray3d(Vector3T<byte> bsize) {
         BitSize = bsize;
         BitSizeXY = bsize.X + bsize.Y;
         Masks = Size - 1;
         Masks.Y <<= BitSize.X;
         Masks.Z <<= BitSizeXY;
+        Size = bsize.Do((val) => 1 << val);
+        data = new OBJ[Size.Product()];
     }
-    public override uint GetIndexFromXyz(uint x, uint y, uint z) => x | (y << BitSize.X) | (z << BitSizeXY);
 
-    public override Vector3T<uint> GetXyzFromIndex(uint it) {
+    public BinaryArray3d(Vector3T<byte> bsize, int wind, Func<int, int, OBJ> filler) : this(bsize) {
+        for (int cind = 0; cind < Size.Product(); cind++) {
+            this[cind] = filler(wind, cind);
+        }
+    }
+
+    public int GetIndexFromXyz(Vector3T<int> xyz) => xyz.X | (xyz.Y << BitSize.X) | (xyz.Z << BitSizeXY);
+
+    public Vector3T<int> GetXyzFromIndex(int it) {
         var rtn = Masks.Do((m) => it & m);
         rtn.Y >>= BitSize.X;
         rtn.Z >>= BitSizeXY;
         return rtn;
     }
-    public static uint GetIndexFromXyz(uint x, uint y, uint z, int bsizex, int bsizey) => x | (y << bsizex) | (z << (bsizex + bsizey));
+
+
+    public OBJ this[Vector3T<int> xyz] {
+        get => data[GetIndexFromXyz(xyz)];
+        set => data[GetIndexFromXyz(xyz)] = value;
+    }
+
+    public OBJ this[int i] {
+        get => data[i];
+        set => data[i] = value;
+    }
 }

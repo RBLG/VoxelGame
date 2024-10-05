@@ -1,8 +1,10 @@
-[gd_scene load_steps=6 format=3 uid="uid://sjpnhsmk5jc"]
+[gd_scene load_steps=8 format=3 uid="uid://sjpnhsmk5jc"]
 
 [ext_resource type="Material" uid="uid://dhtyr4p5bd5x1" path="res://shaders/VoxelEngineMaterial.tres" id="1_80kfb"]
 [ext_resource type="Script" path="res://scripts/Player.cs" id="1_ca1al"]
 [ext_resource type="Script" path="res://scripts/VoxelEngine.cs" id="2_k24j3"]
+[ext_resource type="Texture2DArray" uid="uid://r4770ids46e8" path="res://voxels/world_1_colors.tres" id="4_nbpih"]
+[ext_resource type="Texture2DArray" uid="uid://ca0l7h5clftq" path="res://voxels/world_1_occupancy.tres" id="5_x43av"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_3nd6u"]
 size = Vector3(1, 2, 1)
@@ -30,3 +32,5 @@ gi_mode = 0
 mesh = SubResource("QuadMesh_2nhot")
 skeleton = NodePath("")
 script = ExtResource("2_k24j3")
+WorldColors = ExtResource("4_nbpih")
+WorldOccupancy = ExtResource("5_x43av")

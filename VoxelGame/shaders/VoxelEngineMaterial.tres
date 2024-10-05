@@ -5,3 +5,6 @@
 [resource]
 render_priority = 0
 shader = ExtResource("1_w87kh")
+shader_parameter/debug_no_light = false
+shader_parameter/debug_no_color = false
+shader_parameter/debug_show_steps = false

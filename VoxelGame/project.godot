@@ -19,6 +19,11 @@ config/icon="res://icon.svg"
 
 project/assembly_name="VoxelGame"
 
+[filesystem]
+
+import/fbx2gltf/enabled=false
+import/blender/enabled=false
+
 [input]
 
 Exit={
@@ -75,4 +80,12 @@ world_colors={
 world_opacity={
 "type": "sampler2DArray",
 "value": ""
+}
+world_center={
+"type": "ivec3",
+"value": Vector3i(5, 5, 5)
+}
+render_distance={
+"type": "uint",
+"value": 64
 }

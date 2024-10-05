@@ -17,11 +17,18 @@ public struct Vector2T<TYPE> {
 public struct Vector3T<TYPE> where TYPE : INumber<TYPE> {
     public TYPE X, Y, Z;
 
+
+
     public Vector3T(TYPE xyz) : this(xyz, xyz, xyz) { }
     public Vector3T(TYPE x, TYPE y, TYPE z) {
         X = x;
         Y = y;
         Z = z;
+    }
+    public Vector3T() {
+        X = TYPE.Zero;
+        Y = TYPE.Zero;
+        Z = TYPE.Zero;
     }
 
     public static bool operator ==(Vector3T<TYPE> l, Vector3T<TYPE> r) => l.X == r.X && l.Y == r.Y && l.Z == r.Z;
@@ -107,6 +114,10 @@ public struct Vector3T<TYPE> where TYPE : INumber<TYPE> {
     public readonly Vector3T<TYPE> Square() => this * this;
     public readonly Vector3T<int> Sign() => new(TYPE.Sign(X), TYPE.Sign(X), TYPE.Sign(X));
 
+    public readonly TYPE LengthSquared() => (this * this).Sum();
+
+    public readonly double Length => Math.Sqrt(Convert.ToDouble(LengthSquared()));
+
 }
 
 public static class GMath {
@@ -127,4 +138,7 @@ public static class GMath {
         if (mod < NUM.Zero) { mod += NUM.One * arg2; }
         return mod;
     }
+
+    public static Vector3T<uint> ToUint(this Vector3T<int> vec) => vec.Do((v) => (uint)v);
+    public static Vector3T<int> ToInt(this Vector3T<uint> vec) => vec.Do((v) => (int)v);
 }
