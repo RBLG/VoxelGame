@@ -7,6 +7,8 @@ using VoxelGame.scripts.content;
 
 namespace voxelgame.scripts;
 
+using WorldDataVec3 = FastWorldData<WorldSettings1, Vector3T<float>>;
+
 [Tool]
 public partial class VoxelEngine : MeshInstance3D {
 
@@ -225,7 +227,7 @@ public partial class VoxelEngine : MeshInstance3D {
     public readonly ConcurrentQueue<LayerUpdate> colorLayerUpdates = new();
 
 
-    public void PrepareColorLayers(WorldData1<Vector3T<float>> colors) {
+    public void PrepareColorLayers(WorldDataVec3 colors) {
         var mins = world.chunks.Mins;
 
         for (int itz = 0; itz < size.Z; itz++) {
@@ -265,7 +267,7 @@ public partial class VoxelEngine : MeshInstance3D {
 
     public void UpdateWorld() {
         UpdatingLight = false;
-        world = World.From(WorldOccupancy, WorldColors);
+        world = World.Import(WorldOccupancy, WorldColors);
     }
 }
 

@@ -11,8 +11,8 @@ using VoxelGame.scripts.common;
 
 namespace VoxelGame.scripts.content;
 
-using WorldDataVec3 = WorldData1<Vector3T<float>>;
-using WorldDataFloat = WorldData1<float>;
+using WorldDataVec3 = FastWorldData<WorldSettings1, Vector3T<float>>;
+using WorldDataFloat = FastWorldData<WorldSettings1, float>;
 
 
 public class BadLightEngine {
@@ -47,53 +47,49 @@ public class BadLightEngine {
 
     private readonly ConcurrentQueue<LightUpdateOrder> nextsources = new();
     private readonly ConcurrentQueue<LightUpdateMergeRequest> mergequeue = new();
-    //private readonly ConcurrentQueue<LightUpdateResult> changequeue = new();
 
 
 
     public static Vector3T<float> RandomColor() => new(GD.Randf(), GD.Randf(), GD.Randf());
 
     public void DoLighting() {
-        if (!Enabled) {
-            return;
-        }
+        if (!Enabled) { return; }
         GD.Print("Initiating light maps");
-        WorldDataVec3 maincmap = new((wind, cind) => world.chunks[wind, cind].color);
-        WorldDataVec3 emitmap = WorldDataVec3.UnsafeNew();
-        var p = new Vector3T<int>();
+        WorldDataVec3 currentmap = new((wind, cind) => world.chunks[wind, cind].color);
+        WorldDataVec3 updatemap = new((wind, cind) => currentmap[wind, cind]);
+        var p = new Vector3T<int>(0);
         var p1 = p + (+02, +02, -9);
         var p2 = p + (+11, +62, 10);
         var p3 = p + (+73, -12, 13);
         var p4 = p + (-50, -38, -3);
-        maincmap[p1] = RandomColor() * 680;
-        maincmap[p2] = RandomColor() * 330;
-        maincmap[p3] = RandomColor() * 500;
-        maincmap[p4] = RandomColor() * 300;
-        nextsources.Enqueue(new(p1, maincmap[p1], new(0)));
-        nextsources.Enqueue(new(p2, maincmap[p2], new(0)));
-        nextsources.Enqueue(new(p3, maincmap[p3], new(0)));
-        nextsources.Enqueue(new(p4, maincmap[p4], new(0)));
+        currentmap[p1] += RandomColor() * 680;
+        currentmap[p2] += RandomColor() * 330;
+        currentmap[p3] += RandomColor() * 500;
+        currentmap[p4] += RandomColor() * 300;
+        nextsources.Enqueue(new(p1, currentmap[p1] - updatemap[p1], new(0)));
+        nextsources.Enqueue(new(p2, currentmap[p2] - updatemap[p2], new(0)));
+        nextsources.Enqueue(new(p3, currentmap[p3] - updatemap[p3], new(0)));
+        nextsources.Enqueue(new(p4, currentmap[p4] - updatemap[p4], new(0)));
+        updatemap = new((wind, cind) => currentmap[wind, cind]);
+
 
         GD.Print("preparing the raw color layer");
-        engine.PrepareColorLayers(maincmap);
+        engine.PrepareColorLayers(currentmap);
 
         GD.Print("starting the light computation");
-        bool done = false;
-        while (!done) {
-            QueueSignificantSources(emitmap);
+        while (true) {
+            GD.Print("finding significant sources");
+            QueueSignificantSources(updatemap, currentmap);
             var ids = ContinueDoingLighting();
-            done = true;
             GD.Print($"sources: {ids.Count}");
+            if (ids.Count == 0) { break; }
             foreach (var id in ids) {
-                done = false;
                 WorkerThreadPool.WaitForTaskCompletion(id);
             }
-            if (!Enabled) {
-                return;
-            }
-            if (ApplyMergeQueue(maincmap, emitmap)) {
-                engine.PrepareColorLayers(maincmap);
-                //changequeue.Enqueue(new(maincmap));
+            if (!Enabled) { return; }
+            GD.Print("applying results");
+            if (ApplyMergeQueue(currentmap)) {
+                engine.PrepareColorLayers(currentmap);
             }
         }
         GD.Print("no more sources");
@@ -115,69 +111,63 @@ public class BadLightEngine {
 
 
 
-    public bool ApplyMergeQueue(WorldDataVec3 mcmap, WorldDataVec3 changemap) {
+    public bool ApplyMergeQueue(WorldDataVec3 currentmap) {
         bool updated = false;
         while (mergequeue.TryDequeue(out LightUpdateMergeRequest? rslt)) {
-            MergeColormap(mcmap, changemap, rslt.Cmap);
+            MergeColormap(currentmap, rslt.Cmap);
             updated = true;
         }
         return updated;
     }
 
-
-    /*public bool ApplyLatestResults() {
-        bool updated = false;
-        while (changequeue.TryDequeue(out LightUpdateResult? rslt)) {
-            //ApplyColormap(rslt.Cmap);
-            updated = true;
-        }
-        return updated;
-    }*/
-
-    public void QueueSignificantSources(WorldDataVec3 changemap) {
+    public void QueueSignificantSources(WorldDataVec3 updatemap, WorldDataVec3 currentmap) {
 
         float[] top = new float[] { 0.05f };
         List<LightUpdateOrder> orders = new();
 
 
-        changemap.ForAll((xyz) => {
+        updatemap.ForAll((xyz) => {
             world.chunks.DeconstructPosToIndex(xyz, out var wind, out var cind);
-            var emit = changemap[wind, cind];
+            var emit = currentmap[wind, cind] - updatemap[wind, cind];
 
+            if (emit == 0) { return; }
             var adjs = world.Adjacency[wind, cind];
+            if (adjs.IsEmpty()) { return; }
             var nb1 = adjs[0] ? world.chunks[xyz + (1, 0, 0)].color : new(0);
             var nb2 = adjs[1] ? world.chunks[xyz + (0, 1, 0)].color : new(0);
             var nb3 = adjs[2] ? world.chunks[xyz + (0, 0, 1)].color : new(0);
             var nb4 = adjs[3] ? world.chunks[xyz - (1, 0, 0)].color : new(0);
             var nb5 = adjs[4] ? world.chunks[xyz - (0, 1, 0)].color : new(0);
             var nb6 = adjs[5] ? world.chunks[xyz - (0, 0, 1)].color : new(0);
-            Vector3T<int> filter = new(0) {
-                X = adjs.Get(0) - adjs.Get(3),
-                Y = adjs.Get(1) - adjs.Get(4),
-                Z = adjs.Get(2) - adjs.Get(5)
-            };
-
             var bestnb = nb1.Max(nb2).Max(nb3).Max(nb4).Max(nb5).Max(nb6);
             emit *= bestnb;
+
+
+
+
             float emax = emit.Max();
             if (0.05f <= emax && top[0] * 0.7f <= emax) {
                 top[0] = Math.Max(top[0], emax);
+
+                Vector3T<int> filter = new(0) {
+                    X = adjs.Get(0) - adjs.Get(3),
+                    Y = adjs.Get(1) - adjs.Get(4),
+                    Z = adjs.Get(2) - adjs.Get(5)
+                };
                 orders.Add(new(xyz, emit, filter));
             }
         });
-        orders = orders.OrderBy((o) => o.Emit.Max()).ToList();
         int it = 0;
-        foreach (var order in orders) {
+        foreach (var order in orders.OrderBy((o) => o.Emit.Max())) {
             if (8 <= it) { break; }
             nextsources.Enqueue(order);
-            changemap[order.Source] = new(0);
+            updatemap[order.Source] = currentmap[order.Source];
             it++;
         }
     }
 
     public void DoLightingOnce(Vector3T<int> source, Vector3T<float> emit, Vector3T<int> filter) {
         WorldDataFloat lmap = WorldDataFloat.UnsafeNew();
-
 
         DoSourceLighting(source, lmap, filter);
         WorldDataVec3 cmap = WorldDataVec3.UnsafeNew();
@@ -245,31 +235,35 @@ public class BadLightEngine {
             world.chunks.DeconstructPosToIndex(xyz, out var wind, out var cind);
             if (world.Opacity[wind, cind]) { return; }
 
-            var dist = xyz - source;
+            float lval = lmap[wind, cind];
+            if (lval == 0) { return; }
 
-            var adjs = world.Adjacency[wind, cind];
-            var l1 = adjs[0] ? GetLambert(dist, new(1, 0, 0), filter) : 0;
-            var l2 = adjs[1] ? GetLambert(dist, new(0, 1, 0), filter) : 0;
-            var l3 = adjs[2] ? GetLambert(dist, new(0, 0, 1), filter) : 0;
-            var l4 = adjs[3] ? GetLambert(dist, new(-1, 0, 0), filter) : 0;
-            var l5 = adjs[4] ? GetLambert(dist, new(0, -1, 0), filter) : 0;
-            var l6 = adjs[5] ? GetLambert(dist, new(0, 0, -1), filter) : 0;
+            var dist = xyz - source;
+            if (dist == 0) { return; }
+
+            var adjs = world.Adjacency[wind, cind]; //TODO also do source (filter) lambert
+            if (adjs.IsEmpty()) { return; }
+            var l1 = 0 <= dist.X && adjs[0] ? GetLambert(dist, new(1, 0, 0), filter) : 0;
+            var l2 = 0 <= dist.Y && adjs[1] ? GetLambert(dist, new(0, 1, 0), filter) : 0;
+            var l3 = 0 <= dist.Z && adjs[2] ? GetLambert(dist, new(0, 0, 1), filter) : 0;
+            var l4 = 0 >= dist.X && adjs[3] ? GetLambert(dist, new(-1, 0, 0), filter) : 0;
+            var l5 = 0 >= dist.Y && adjs[4] ? GetLambert(dist, new(0, -1, 0), filter) : 0;
+            var l6 = 0 >= dist.Z && adjs[5] ? GetLambert(dist, new(0, 0, -1), filter) : 0;
             //float avglambert = (l1 + l2 + l3 + l4 + l5 + l6) / adjs.Sum();
             float bestlambert = Math.Max(Math.Max(Mathf.Max(l1, l2), Mathf.Max(l3, l4)), Mathf.Max(l5, l6));
 
-            float lval = lmap[wind, cind];
             //lval = (lval < 0.5) ? 0 : 1;
             //lval /= MathF.Sqrt(dist.Square().Sum());
             lval /= (dist - filter).Square().Sum();
             var lcol = lval * emit * 0.6f;
-            lcol *= bestlambert;
+            //lcol *= bestlambert;
             cmap[wind, cind] = lcol;
             if (cmap[wind, cind] != lcol) {
                 GD.Print("ApplyLightmap failed to apply");
             }
-            if (lmap[wind, cind] != 0 && (lcol == 0)) {
-                GD.Print("ApplyLightmap went wrong in light effects");
-            }
+            //if (lmap[wind, cind] != 0 && bestlambert==0) {
+            //    GD.Print("ApplyLightmap went wrong in light effects");
+            //}
         });
     }
 
@@ -280,42 +274,23 @@ public class BadLightEngine {
             tdist += tnormal.Do(tfilter, (n, f) => (n == f) ? n : (n - f));
         }
 
-        Vector3 dist = new(tdist.X, tdist.Y, tdist.Z);
         Vector3 normal = new(tnormal.X, tnormal.Y, tnormal.Z);
-
+        Vector3 dist = new(tdist.X, tdist.Y, tdist.Z);
         dist = dist.Normalized();
-        var mult = dist * normal;
+
+
         //Ax* Bx +Ay * By + Az * Bz
-        return Math.Max(mult.X + mult.Y + mult.Z, 0);
-        //return Math.Max(Mathf.Cos(dist.AngleTo(normal)), 0);
+        var mult = dist * normal;
+        var lambert = Math.Max(mult.X + mult.Y + mult.Z, 0);
+
+        return lambert;
     }
 
-    public void MergeColormap(WorldDataVec3 maincomap, WorldDataVec3 changemap, WorldDataVec3 comap) {
-        maincomap.ForAll((xyz) => {
-            world.chunks.DeconstructPosToIndex(xyz, out var wind, out var cind);
-            var coval = comap[wind, cind];
-            var val = changemap[xyz] + coval;
-            maincomap[xyz] = val;
-            changemap[xyz] = val;
-            //maincomap[wind, cind] = val;
-            //changemap[wind, cind] = val;
-
-            if (val != changemap[xyz]) {
-                GD.Print("mergeColormap failed to merge");
-            }
+    public void MergeColormap(WorldDataVec3 currentmap, WorldDataVec3 comap) {
+        currentmap.ForAll((wind, cind) => {
+            currentmap[wind, cind] += comap[wind, cind];
         });
     }
-
-    /*public void ApplyColormap(WorldData<Vector3T<float>> cmap) {
-        world.ForAll((xyz) => {
-            world.DeconstructPosToIndex(xyz, out var wind, out var cind);
-            if (!world.Opacity[wind, cind]) {
-                //var vox = world[wind, cind];
-                //vox.color = cmap[wind, cind];
-                world[wind, cind].color = cmap[wind, cind];
-            }
-        });
-    }*/
 
     private long mainWorkerId;
 

@@ -11,6 +11,10 @@ public interface IWorldSettings {
     public Vector3T<int> Center { get; }
     public Vector3T<int> ChunkSize { get; }
     public Vector3T<byte> ChunkBitSize { get; }
+
+    public Vector3T<int> Maxs => ((Size - Center) * ChunkSize) - 1;
+    public Vector3T<int> Mins => -Center * ChunkSize;
+    public Vector3T<int> TotalSize  => Size * ChunkSize;
 }
 
 public class WorldData<SETTINGS, ARRAY, DATA>
@@ -19,16 +23,14 @@ public class WorldData<SETTINGS, ARRAY, DATA>
 
     protected static readonly SETTINGS settings = new();
     public CenteredArray3D<ARRAY> Chunks { get; }
-    public Vector3T<int> Maxs { get; }
-    public Vector3T<int> Mins { get; }
-    public Vector3T<int> TotalSize { get; }
+    public Vector3T<int> Maxs { get; } = settings.Maxs;
+    public Vector3T<int> Mins { get; } = settings.Mins;
+    public Vector3T<int> TotalSize { get; } = settings.TotalSize;
+    public Vector3T<int> Size { get; } = settings.Size;
 
     protected WorldData(Func<ARRAY> initer) {
         Chunks = new(settings.Size, settings.Center);
         Chunks.InitAll((i) => initer());
-        Maxs = ((settings.Size - settings.Center) * settings.ChunkSize) - 1;
-        Mins = -settings.Center * settings.ChunkSize;
-        TotalSize = settings.Size * settings.ChunkSize;
     }
 
     public WorldData(Func<ARRAY> initer, Func<Vector3T<int>, DATA> filler) : this(initer) {
@@ -41,7 +43,8 @@ public class WorldData<SETTINGS, ARRAY, DATA>
     protected static WorldData<SETTINGS, ARRAY, DATA> UnsafeNew(Func<ARRAY> initer) => new(initer);
 
 
-    public void DeconstructPos(Vector3T<int> pos, out Vector3T<int> wpos, out Vector3T<int> cpos) {
+
+    public static void DeconstructPos(Vector3T<int> pos, out Vector3T<int> wpos, out Vector3T<int> cpos) {
         if (settings.ChunkSize == 4) {
             cpos = pos.Do((val) => val & 0b11);
             wpos = pos.Do(cpos, (val, cval) => (val - cval) >> 2);
@@ -86,10 +89,8 @@ public class WorldData<SETTINGS, ARRAY, DATA>
     }
 
     public void ForAll(Action<int, int> action) {
-        int wlen = settings.Size.Product();
-        int clen = settings.ChunkSize.Product();
-        for (int wind = 0; wind < wlen; wind++) {
-            for (int cind = 0; cind < clen; cind++) {
+        for (int wind = 0; wind < settings.Size.Product(); wind++) {
+            for (int cind = 0; cind < settings.ChunkSize.Product(); cind++) {
                 action(wind, cind);
             }
         }
@@ -98,20 +99,20 @@ public class WorldData<SETTINGS, ARRAY, DATA>
 
 
 
-public class WorldBinaryData<SETTINGS, DATA> : WorldData<SETTINGS, BinaryArray3d<DATA>, DATA> where SETTINGS : IWorldSettings, new() {
+public class FastWorldData<SETTINGS, DATA> : WorldData<SETTINGS, FastArray3d<DATA>, DATA> where SETTINGS : IWorldSettings, new() {
 
-    private static BinaryArray3d<DATA> Initer() => new(settings.ChunkBitSize);
+    private static FastArray3d<DATA> Initer() => new(settings.ChunkBitSize);
 
-    protected WorldBinaryData() : base(Initer) { }
-    public WorldBinaryData(Func<int, int, DATA> filler) : base(Initer, filler) { }
-    public WorldBinaryData(Func<Vector3T<int>, DATA> filler) : base(Initer, filler) { }
-    public static WorldBinaryData<SETTINGS, DATA> UnsafeNew() => new();
+    protected FastWorldData() : base(Initer) { }
+    public FastWorldData(Func<int, int, DATA> filler) : base(Initer, filler) { }
+    public FastWorldData(Func<Vector3T<int>, DATA> filler) : base(Initer, filler) { }
+    public static FastWorldData<SETTINGS, DATA> UnsafeNew() => new();
 
 }
 
 
-public class WorldBoolData<SETTINGS> : WorldData<SETTINGS, BooleanArray3D, bool> where SETTINGS : IWorldSettings, new() {
-    private static BooleanArray3D Initer() => new();
+public class WorldBoolData<SETTINGS> : WorldData<SETTINGS, BoolArray3d, bool> where SETTINGS : IWorldSettings, new() {
+    private static BoolArray3d Initer() => new();
 
     protected WorldBoolData() : base(Initer) { }
     public WorldBoolData(Func<int, int, bool> filler) : base(Initer, filler) { }

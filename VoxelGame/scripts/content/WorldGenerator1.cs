@@ -5,9 +5,9 @@ namespace VoxelGame.scripts.content;
 public class WorldGenerator1 {
     WorldSettings1 settings = new();
 
-    public BinaryArray3d<Voxel> GenerateChunk(Vector3T<int> pos, out BooleanArray3D OpacityData) {
-        BinaryArray3d<Voxel> nchunk = new(new(2));
-        BooleanArray3D Opacities = new();
+    public FastArray3d<Voxel> GenerateChunk(Vector3T<int> pos, out BoolArray3d OpacityData) {
+        FastArray3d<Voxel> nchunk = new(new(2));
+        BoolArray3d Opacities = new();
         IArray3d<Voxel> nchunk2 = nchunk;
         nchunk2.ForAll((xyz) => {
             int ind = nchunk.GetIndexFromXyz(xyz);

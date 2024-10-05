@@ -3,11 +3,13 @@ using System;
 using VoxelGame.scripts.common;
 
 namespace VoxelGame.scripts.content;
+
+
 public class World {
 
-    public readonly WorldBinaryData<WorldSettings1, Voxel> chunks;
-    public readonly WorldBoolData1 Opacity;
-    public readonly WorldBinaryData<WorldSettings1, Bool8Array> Adjacency;
+    public readonly FastWorldData<WorldSettings1, Voxel> chunks;
+    public readonly WorldBoolData<WorldSettings1> Opacity;
+    public readonly FastWorldData<WorldSettings1, Bool8Pack> Adjacency;
 
     public World() {
         chunks = new((wind, cind) => new());
@@ -15,12 +17,18 @@ public class World {
         Adjacency = new((wind, cind) => new());
     }
 
-    public void Generate(WorldGenerator1 generator) {
-        chunks.Chunks.ForAll((xyz) => {
-            chunks.Chunks[xyz] = generator.GenerateChunk(xyz, out var OpacityChunk);
-            Opacity.Chunks[xyz] = OpacityChunk;
+    public static World Generate(WorldGenerator1 generator) {
+        World world = new();
+        world.chunks.Chunks.ForAll((xyz) => {
+            world.chunks.Chunks[xyz] = generator.GenerateChunk(xyz, out var OpacityChunk);
+            world.Opacity.Chunks[xyz] = OpacityChunk;
         });
-        generator.InsertFeatures(this);
+        generator.InsertFeatures(world);
+        world.UpdateAdjacency();
+        return world;
+    }
+
+    public void UpdateAdjacency() { //TODO change world initialization schema so that updateAdjacency is always called 
         chunks.ForAll((xyz) => {
             bool a1 = (xyz.X != chunks.Maxs.X) && Opacity[xyz + (1, 0, 0)];
             bool a2 = (xyz.Y != chunks.Maxs.Y) && Opacity[xyz + (0, 1, 0)];
@@ -32,7 +40,7 @@ public class World {
         });
     }
 
-    public void WriteToTexture2DArrays(Texture2DArray occup, Texture2DArray colors) {
+    public void Export(Texture2DArray occup, Texture2DArray colors) {
         for (int itz = 0; itz < chunks.TotalSize.Z; itz++) {
             Image layer = colors.GetLayerData(itz);
             for (int itx = 0; itx < chunks.TotalSize.X; itx++) {
@@ -74,8 +82,7 @@ public class World {
         }
     }
 
-    public static World From(Texture2DArray occupancy, Texture2DArray colors) {
-        //Vector3T<int> size = new(occupancy.GetWidth(), occupancy.GetHeight(), occupancy.GetLayers());
+    public static World Import(Texture2DArray occupancy, Texture2DArray colors) {
         World world = new();
 
         for (int itz = 0; itz < world.chunks.TotalSize.Z; itz++) {
@@ -90,10 +97,9 @@ public class World {
             }
         }
         var mins = -world.chunks.Chunks.Center;
-        for (int itz = 0; itz < world.chunks.Chunks.Size.Z; itz++) {
+        for (int itz = 0; itz < world.chunks.Size.Z; itz++) {
             Image layer = occupancy.GetLayerData(itz);
-
-            for (int itx = 0; itx < world.chunks.Chunks.Size.X; itx++) {
+            for (int itx = 0; itx < world.chunks.Size.X; itx++) {
                 for (int ity = 0; ity < world.chunks.Chunks.Size.Y; ity++) {
                     var xyz = mins + (itx, ity, itz);
 
@@ -105,9 +111,7 @@ public class World {
                 }
             }
         }
-
-
-
+        world.UpdateAdjacency();
 
         return world;
     }
@@ -122,11 +126,14 @@ public class WorldSettings1 : IWorldSettings {
 
 public record class Voxel {
     public Vector3T<float> color;
-    //public bool Opaque = false;
     public Vector2T<byte> uv = new(3, 3);
     public Vector3T<byte> emit; //just a float?
 }
 
+
+
+
+[Obsolete("use WorldBoolData<WorldSettings1> and aliases")]
 public class WorldBoolData1 : WorldBoolData<WorldSettings1> {
     protected WorldBoolData1() : base() { }
     public WorldBoolData1(Func<int, int, bool> filler) : base(filler) { }
@@ -135,8 +142,8 @@ public class WorldBoolData1 : WorldBoolData<WorldSettings1> {
 
 }
 
-//[Obsolete("just bad")]
-public class WorldData1<DATA> : WorldBinaryData<WorldSettings1, DATA> {
+[Obsolete("use FastWorldData<WorldSettings1, DATA> and aliases")]
+public class WorldData1<DATA> : FastWorldData<WorldSettings1, DATA> {
 
     protected WorldData1() : base() { }
     public WorldData1(Func<int, int, DATA> filler) : base(filler) { }
@@ -144,3 +151,5 @@ public class WorldData1<DATA> : WorldBinaryData<WorldSettings1, DATA> {
     public new static WorldData1<DATA> UnsafeNew() => new();
 
 }
+
+

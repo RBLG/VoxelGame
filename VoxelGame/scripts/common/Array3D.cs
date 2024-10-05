@@ -51,8 +51,6 @@ public class Array3d<OBJ> : IArray3d<OBJ> {
     }
 
 
-
-
     public void InitAll(Func<int, OBJ> filler) {
         for (int it = 0; it < totalLength; it++) {
             data[it] = filler(it);

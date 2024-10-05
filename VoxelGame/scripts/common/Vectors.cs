@@ -78,13 +78,26 @@ public struct Vector3T<TYPE> where TYPE : INumber<TYPE> {
         where TYPE3 : INumber<TYPE3> {
         return new(func(X, r.X), func(Y, r.Y), func(Z, r.Z));
     }
-
     public readonly Vector3T<TYPE2> Do<TYPE2, TYPE3, TYPE4>(Vector3T<TYPE3> r, Vector3T<TYPE4> r2, Func<TYPE, TYPE3, TYPE4, TYPE2> func)
         where TYPE2 : INumber<TYPE2>
         where TYPE3 : INumber<TYPE3>
         where TYPE4 : INumber<TYPE4> {
         return new(func(X, r.X, r2.X), func(Y, r.Y, r2.Y), func(Z, r.Z, r2.Z));
     }
+
+    public readonly (bool x, bool y, bool z) Do(Func<TYPE, bool> func) {
+        return new(func(X), func(Y), func(Z));
+    }
+    public readonly (bool x, bool y, bool z) Do<TYPE3>(Vector3T<TYPE3> r, Func<TYPE, TYPE3, bool> func)
+        where TYPE3 : INumber<TYPE3> {
+        return new(func(X, r.X), func(Y, r.Y), func(Z, r.Z));
+    }
+    public readonly (bool x, bool y, bool z) Do<TYPE3, TYPE4>(Vector3T<TYPE3> r, Vector3T<TYPE4> r2, Func<TYPE, TYPE3, TYPE4, bool> func)
+        where TYPE3 : INumber<TYPE3>
+        where TYPE4 : INumber<TYPE4> {
+        return new(func(X, r.X, r2.X), func(Y, r.Y, r2.Y), func(Z, r.Z, r2.Z));
+    }
+
     public readonly bool Any<TYPE3>(Vector3T<TYPE3> r, Func<TYPE, TYPE3, bool> func)
         where TYPE3 : INumber<TYPE3> {
         return func(X, r.X) || func(Y, r.Y) || func(Z, r.Z);
