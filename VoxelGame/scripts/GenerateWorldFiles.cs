@@ -19,7 +19,7 @@ public partial class GenerateWorldFiles : EditorScript {
         var size = VoxelEngine.size;
 
         Texture2DArray occupancy = ResourceLoader.Exists(ocuppath) ? GD.Load<Texture2DArray>(ocuppath) : new();
-        Image[] imgs = new Image[csize.Z].Select((i) => Image.CreateEmpty(csize.X, csize.Y, false, VoxelEngine.OpacityFormat)).ToArray();
+        Image[] imgs = new Image[csize.Z].Select((i) => Image.CreateEmpty(csize.X, csize.Y, false, VoxelEngine.OccupancyFormat)).ToArray();
         _ = occupancy.CreateFromImages(new(imgs));
         occupancy.TakeOverPath(ocuppath);
         occupancy.ResourcePath = ocuppath;

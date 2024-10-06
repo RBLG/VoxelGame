@@ -9,7 +9,6 @@ namespace VoxelGame.scripts.common;
 public class Bool8Pack {
     private byte data = 0;
 
-
     public Bool8Pack() { }
 
     public bool this[int index] {
@@ -35,6 +34,6 @@ public class Bool8Pack {
     }
     public int Sum() => BitOperations.PopCount(data);
 
-    public bool IsEmpty() => data == 0;
+    public bool IsEmpty() => data == 0u;
 }
 

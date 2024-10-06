@@ -49,8 +49,8 @@ public class WorldGenerator1 {
             for (int itz = -10; itz < 13; itz++) {
                 Vector3T<int> xyz = new(itx, -30, itz);
 
-                world.chunks[xyz].color = new(0.8f, 0.7f, 0.6f);
-                world.Opacity[xyz] = true;
+                world.Voxels[xyz].color = new(0.8f, 0.7f, 0.6f);
+                world.Occupancy[xyz] = true;
             }
         }
 
@@ -58,8 +58,8 @@ public class WorldGenerator1 {
             for (int itz = -10; itz < 20; itz++) {
                 Vector3T<int> xyz = new(itx, -40, itz);
 
-                world.chunks[xyz].color = new(0.8f, 0.7f, 0.6f);
-                world.Opacity[xyz] = true;
+                world.Voxels[xyz].color = new(0.8f, 0.7f, 0.6f);
+                world.Occupancy[xyz] = true;
             }
         }
 

@@ -6,30 +6,26 @@ using VoxelGame.scripts.common;
 
 namespace VoxelGame.scripts.content;
 
-public interface IWorldSettings {
-    public Vector3T<int> Size { get; }
-    public Vector3T<int> Center { get; }
-    public Vector3T<int> ChunkSize { get; }
-    public Vector3T<byte> ChunkBitSize { get; }
+public abstract class IWorldSettings {
+    public abstract Vector3T<int> GridSize { get; }
+    public abstract Vector3T<int> Center { get; }
+    public abstract Vector3T<int> ChunkSize { get; }
+    public abstract Vector3T<byte> ChunkBitSize { get; }
 
-    public Vector3T<int> Maxs => ((Size - Center) * ChunkSize) - 1;
-    public Vector3T<int> Mins => -Center * ChunkSize;
-    public Vector3T<int> TotalSize  => Size * ChunkSize;
+    public Vector3T<int> TotalMaxs => ((GridSize - Center) * ChunkSize) - 1;
+    public Vector3T<int> TotalMins => -Center * ChunkSize;
+    public Vector3T<int> TotalSize => GridSize * ChunkSize;
 }
 
 public class WorldData<SETTINGS, ARRAY, DATA>
     where SETTINGS : IWorldSettings, new()
     where ARRAY : IArray3d<DATA> {
-
     protected static readonly SETTINGS settings = new();
-    public CenteredArray3D<ARRAY> Chunks { get; }
-    public Vector3T<int> Maxs { get; } = settings.Maxs;
-    public Vector3T<int> Mins { get; } = settings.Mins;
-    public Vector3T<int> TotalSize { get; } = settings.TotalSize;
-    public Vector3T<int> Size { get; } = settings.Size;
+    public SETTINGS Settings { get; } = settings;
 
+    public CenteredArray3D<ARRAY> Chunks { get; }
     protected WorldData(Func<ARRAY> initer) {
-        Chunks = new(settings.Size, settings.Center);
+        Chunks = new(settings.GridSize, settings.Center);
         Chunks.InitAll((i) => initer());
     }
 
@@ -79,9 +75,9 @@ public class WorldData<SETTINGS, ARRAY, DATA>
     }
 
     public void ForAll(Action<Vector3T<int>> action) {
-        for (int itx = Mins.X; itx <= Maxs.X; itx++) {
-            for (int ity = Mins.Y; ity <= Maxs.Y; ity++) {
-                for (int itz = Mins.Z; itz <= Maxs.Z; itz++) {
+        for (int itx = settings.TotalMins.X; itx <= settings.TotalMaxs.X; itx++) {
+            for (int ity = settings.TotalMins.Y; ity <= settings.TotalMaxs.Y; ity++) {
+                for (int itz = settings.TotalMins.Z; itz <= settings.TotalMaxs.Z; itz++) {
                     action(new(itx, ity, itz));
                 }
             }
@@ -89,7 +85,7 @@ public class WorldData<SETTINGS, ARRAY, DATA>
     }
 
     public void ForAll(Action<int, int> action) {
-        for (int wind = 0; wind < settings.Size.Product(); wind++) {
+        for (int wind = 0; wind < settings.GridSize.Product(); wind++) {
             for (int cind = 0; cind < settings.ChunkSize.Product(); cind++) {
                 action(wind, cind);
             }
