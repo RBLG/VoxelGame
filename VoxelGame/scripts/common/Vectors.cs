@@ -33,8 +33,10 @@ public struct Vector3T<TYPE> where TYPE : INumber<TYPE> {
 
     public static bool operator ==(Vector3T<TYPE> l, Vector3T<TYPE> r) => l.X == r.X && l.Y == r.Y && l.Z == r.Z;
     public static bool operator ==(Vector3T<TYPE> l, TYPE r) => l.X == r && l.Y == r && l.Z == r;
+    public static bool operator ==(Vector3T<TYPE> l, (TYPE X, TYPE Y, TYPE Z) r) => l.X == r.X && l.Y == r.Y && l.Z == r.Z;
     public static bool operator !=(Vector3T<TYPE> l, Vector3T<TYPE> r) => !(l == r);
     public static bool operator !=(Vector3T<TYPE> l, TYPE r) => !(l == r);
+    public static bool operator !=(Vector3T<TYPE> l, (TYPE X, TYPE Y, TYPE Z) r) => !(l == r);
     public static bool operator <(Vector3T<TYPE> l, Vector3T<TYPE> r) => l.X < r.X && l.Y < r.Y && l.Z < r.Z;
     public static bool operator >(Vector3T<TYPE> l, Vector3T<TYPE> r) => l.X > r.X && l.Y > r.Y && l.Z > r.Z;
     public static bool operator <=(Vector3T<TYPE> l, Vector3T<TYPE> r) => l.X <= r.X && l.Y <= r.Y && l.Z <= r.Z;

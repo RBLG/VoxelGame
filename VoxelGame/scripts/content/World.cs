@@ -85,6 +85,14 @@ public class World {
 
     public static World Import(Texture2DArray occupancy, Texture2DArray colors) {
         World world = new();
+        if (!(settings.TotalSize == (colors.GetLayers(), colors.GetHeight(), colors.GetWidth()))) {
+            GD.Print("world import failed: occupancy file doesnt fit settings");
+            return world;
+        }else if (!(world.Occupancy.Chunks.Size == (occupancy.GetLayers(), occupancy.GetHeight(), occupancy.GetWidth()))) {
+            GD.Print("world import failed: colors file doesnt fit settings");
+            return world;
+        }
+
 
         var totalSize = settings.TotalSize;
         for (int itz = 0; itz < totalSize.Z; itz++) {
