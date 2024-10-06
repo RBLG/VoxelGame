@@ -118,23 +118,25 @@ public partial class VoxelEngine : MeshInstance3D {
     public readonly ConcurrentQueue<LayerUpdate> colorLayerUpdates = new();
 
     public void SendColorLayersUpdates() {
-        bool updated = false;
+        //bool updated = false;
         while (colorLayerUpdates.TryDequeue(out var update)) {
             worldColorsBuffer.UpdateLayer(update.Layer, update.Index);
-            if (Engine.IsEditorHint()) {
-                worldColors?.UpdateLayer(update.Layer, update.Index);
-            }
-            updated = true;
+
+            //if (Engine.IsEditorHint() && BakingLight) {
+            //    worldColors?.UpdateLayer(update.Layer, update.Index);
+            //}
+            //updated = true;
         }
-        if (Engine.IsEditorHint() && updated) {
-            ResourceSaver.Save(worldColors);
-        }
+        //if (Engine.IsEditorHint() && BakingLight && updated) {
+        //    ResourceSaver.Save(worldColors);
+        //}
     }
 
     public void PrepareColorLayers(WorldDataVec3 colors) {
         var mins = colors.Settings.TotalMins;
         var size = colors.Settings.TotalSize;
 
+        int count = 0;
         for (int itz = 0; itz < size.Z; itz++) {
             Image img = Image.CreateEmpty(size.X, size.Y, false, ColorFormat);
 
@@ -152,10 +154,10 @@ public partial class VoxelEngine : MeshInstance3D {
                     img.SetPixel(itx, ity, new(fcol.X, fcol.Y, fcol.Z));
                 }
             }
-
-            GD.Print("updated layer queued");
+            count++;
             colorLayerUpdates.Enqueue(new(itz, img));
         }
+        GD.Print($"queued {count} layer updates");
     }
 
     [Export]

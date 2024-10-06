@@ -29,6 +29,8 @@ public class World {
         return world;
     }
 
+    public static World NewEmpty() => new();
+
     public void UpdateAdjacency() { //TODO change world initialization schema so that updateAdjacency is always called 
         Voxels.ForAll((xyz) => {
             bool a1 = (xyz.X != settings.TotalMaxs.X) && Occupancy[xyz + (1, 0, 0)];
@@ -86,10 +88,11 @@ public class World {
     public static World Import(Texture2DArray occupancy, Texture2DArray colors) {
         World world = new();
         if (!(settings.TotalSize == (colors.GetLayers(), colors.GetHeight(), colors.GetWidth()))) {
-            GD.Print("world import failed: occupancy file doesnt fit settings");
+            GD.Print($"world import failed: occupancy file doesnt fit settings ({settings.TotalSize.X}/{settings.TotalSize.Y}/{settings.TotalSize.Z})");
             return world;
         }else if (!(world.Occupancy.Chunks.Size == (occupancy.GetLayers(), occupancy.GetHeight(), occupancy.GetWidth()))) {
-            GD.Print("world import failed: colors file doesnt fit settings");
+            var size2 = world.Occupancy.Chunks.Size;
+            GD.Print($"world import failed: colors file doesnt fit settings ({size2.X}/{size2.Y}/{size2.Z})");
             return world;
         }
 
