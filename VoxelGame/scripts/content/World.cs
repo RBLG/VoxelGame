@@ -32,22 +32,25 @@ public class World {
     public static World NewEmpty() => new();
 
     public void UpdateAdjacency() { //TODO change world initialization schema so that updateAdjacency is always called 
+        var totalMax = settings.TotalMaxs;
+        var totalMin = settings.TotalMins;
         Voxels.ForAll((xyz) => {
-            bool a1 = (xyz.X != settings.TotalMaxs.X) && Occupancy[xyz + (1, 0, 0)];
-            bool a2 = (xyz.Y != settings.TotalMaxs.Y) && Occupancy[xyz + (0, 1, 0)];
-            bool a3 = (xyz.Z != settings.TotalMaxs.Z) && Occupancy[xyz + (0, 0, 1)];
-            bool a4 = (xyz.X != settings.TotalMins.X) && Occupancy[xyz - (1, 0, 0)];
-            bool a5 = (xyz.Y != settings.TotalMins.Y) && Occupancy[xyz - (0, 1, 0)];
-            bool a6 = (xyz.Z != settings.TotalMins.Z) && Occupancy[xyz - (0, 0, 1)];
+            bool a1 = (xyz.X != totalMax.X) && Occupancy[xyz + (1, 0, 0)];
+            bool a2 = (xyz.Y != totalMax.Y) && Occupancy[xyz + (0, 1, 0)];
+            bool a3 = (xyz.Z != totalMax.Z) && Occupancy[xyz + (0, 0, 1)];
+            bool a4 = (xyz.X != totalMin.X) && Occupancy[xyz - (1, 0, 0)];
+            bool a5 = (xyz.Y != totalMin.Y) && Occupancy[xyz - (0, 1, 0)];
+            bool a6 = (xyz.Z != totalMin.Z) && Occupancy[xyz - (0, 0, 1)];
             Adjacency[xyz].Set(a1, a2, a3, a4, a5, a6);
         });
     }
 
     public void Export(Texture2DArray occup, Texture2DArray colors) {
-        for (int itz = 0; itz < settings.TotalSize.Z; itz++) {
+        var totalSize = settings.TotalSize;
+        for (int itz = 0; itz < totalSize.Z; itz++) {
             Image layer = colors.GetLayerData(itz);
-            for (int itx = 0; itx < settings.TotalSize.X; itx++) {
-                for (int ity = 0; ity < settings.TotalSize.Y; ity++) {
+            for (int itx = 0; itx < totalSize.X; itx++) {
+                for (int ity = 0; ity < totalSize.Y; ity++) {
                     var xyz = settings.TotalMins + (itx, ity, itz);
                     Voxels.DeconstructPosToIndex(xyz, out var wind, out var cind);
 
@@ -65,13 +68,12 @@ public class World {
             }
             colors.UpdateLayer(layer, itz);
         }
-        var mins = -Voxels.Chunks.Center;
-        for (int itz = 0; itz < Voxels.Chunks.Size.Z; itz++) {
+        var gridSize = settings.GridSize;
+        for (int itz = 0; itz < gridSize.Z; itz++) {
             Image layer = occup.GetLayerData(itz);
-
-            for (int itx = 0; itx < Voxels.Chunks.Size.X; itx++) {
-                for (int ity = 0; ity < Voxels.Chunks.Size.Y; ity++) {
-                    var xyz = mins + (itx, ity, itz);
+            for (int itx = 0; itx < gridSize.X; itx++) {
+                for (int ity = 0; ity < gridSize.Y; ity++) {
+                    var xyz = settings.GridMins + (itx, ity, itz);
 
                     ulong occupancy = Occupancy.Chunks[xyz].Data;
 
@@ -87,15 +89,20 @@ public class World {
 
     public static World Import(Texture2DArray occupancy, Texture2DArray colors) {
         World world = new();
-        if (!(settings.TotalSize == (colors.GetLayers(), colors.GetHeight(), colors.GetWidth()))) {
-            GD.Print($"world import failed: occupancy file doesnt fit settings ({settings.TotalSize.X}/{settings.TotalSize.Y}/{settings.TotalSize.Z})");
-            return world;
-        }else if (!(world.Occupancy.Chunks.Size == (occupancy.GetLayers(), occupancy.GetHeight(), occupancy.GetWidth()))) {
-            var size2 = world.Occupancy.Chunks.Size;
-            GD.Print($"world import failed: colors file doesnt fit settings ({size2.X}/{size2.Y}/{size2.Z})");
+
+        var colsize = settings.TotalSize;
+        var colsimg = new Vector3T<int>(colors.GetWidth(), colors.GetHeight(), colors.GetLayers());
+        if (!(colsize == colsimg)) {
+            GD.PrintErr($"world import failed: occupancy size was ({colsimg.X}/{colsimg.Y}/{colsimg.Z}) expected ({colsize.X}/{colsize.Y}/{colsize.Z})");
+        }
+        var occsize = settings.GridSize;
+        var occsimg = new Vector3T<int>(occupancy.GetWidth(), occupancy.GetHeight(), occupancy.GetLayers());
+        if (!(occsize == occsimg)) {
+            GD.PrintErr($"world import failed: colors size was ({occsimg.X}/{occsimg.Y}/{occsimg.Z}) expected ({occsize.X}/{occsize.Y}/{occsize.Z})");
+        }
+        if (!(colsize == colsimg) || !(occsize == occsimg)) {
             return world;
         }
-
 
         var totalSize = settings.TotalSize;
         for (int itz = 0; itz < totalSize.Z; itz++) {
@@ -109,13 +116,12 @@ public class World {
                 }
             }
         }
-        var chunkSize = world.Occupancy.Chunks.Size;
-        var mins = -world.Occupancy.Chunks.Center;
-        for (int itz = 0; itz < chunkSize.Z; itz++) {
+        var gridSize = settings.GridSize;
+        for (int itz = 0; itz < gridSize.Z; itz++) {
             Image layer = occupancy.GetLayerData(itz);
-            for (int itx = 0; itx < chunkSize.X; itx++) {
-                for (int ity = 0; ity < chunkSize.Y; ity++) {
-                    var xyz = mins + (itx, ity, itz);
+            for (int itx = 0; itx < gridSize.X; itx++) {
+                for (int ity = 0; ity < gridSize.Y; ity++) {
+                    var xyz = settings.GridMins + (itx, ity, itz);
 
                     Color data = layer.GetPixel(itx, ity);
                     ulong data1 = BitConverter.SingleToUInt32Bits(data.R);
@@ -133,7 +139,7 @@ public class World {
 
 public class WorldSettings1 : IWorldSettings {
     public override Vector3T<int> GridSize => new(40, 40, 20);
-    public override Vector3T<int> Center => GridSize / 2;
+    public override Vector3T<int> GridCenter => GridSize / 2;
     public override Vector3T<int> ChunkSize => new(4);
     public override Vector3T<byte> ChunkBitSize => new(2);
 }

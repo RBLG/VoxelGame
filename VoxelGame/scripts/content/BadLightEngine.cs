@@ -57,12 +57,9 @@ public class BadLightEngine {
         WorldDataVec3 updatemap = new((wind, cind) => currentmap[wind, cind]);
 
         nextsources.Enqueue(new(new(+02, +02, -9), RandomColor() * 680, new(0)));
-        nextsources.Enqueue(new(new(+11, +62, 10), RandomColor() * 330, new(0)));
-        nextsources.Enqueue(new(new(+73, -12, 13), RandomColor() * 500, new(0)));
-        nextsources.Enqueue(new(new(-50, -38, -3), RandomColor() * 300, new(0)));
-
-        GD.Print("preparing the raw color layer");
-        engine.PrepareColorLayers(currentmap);
+        //nextsources.Enqueue(new(new(+11, +62, 10), RandomColor() * 330, new(0)));
+        //nextsources.Enqueue(new(new(+73, -12, 13), RandomColor() * 500, new(0)));
+        //nextsources.Enqueue(new(new(-50, -38, -3), RandomColor() * 300, new(0)));
 
         GD.Print("starting the light computation");
         while (true) {
@@ -72,7 +69,7 @@ public class BadLightEngine {
             GD.Print($"sources: {ids.Count}");
             if (ids.Count == 0) { break; }
             foreach (var id in ids) {
-                GD.Print($"waiting on task {id}");
+                //GD.Print($"waiting on task {id}");
                 WorkerThreadPool.WaitForTaskCompletion(id);
             }
             if (!Enabled) { return; }
@@ -98,8 +95,8 @@ public class BadLightEngine {
         updatemap.ForAll((xyz) => {
             world.Voxels.DeconstructPosToIndex(xyz, out var wind, out var cind);
             var emit = currentmap[wind, cind] - updatemap[wind, cind];
-
             if (emit == 0) { return; }
+
             var adjs = world.Adjacency[wind, cind];
             if (adjs.IsEmpty()) { return; }
             var nb1 = adjs[0] ? world.Voxels[xyz + (1, 0, 0)].color : new(0);
@@ -109,7 +106,7 @@ public class BadLightEngine {
             var nb5 = adjs[4] ? world.Voxels[xyz - (0, 1, 0)].color : new(0);
             var nb6 = adjs[5] ? world.Voxels[xyz - (0, 0, 1)].color : new(0);
             var bestnb = nb1.Max(nb2).Max(nb3).Max(nb4).Max(nb5).Max(nb6);
-            //emit *= bestnb;
+            emit *= bestnb;
 
             float emax = emit.Max();
             if (top[0] * 0.6f <= emax) {
@@ -130,7 +127,7 @@ public class BadLightEngine {
         int it = 0;
         foreach (var order in orders.OrderBy((o) => -o.Emit.Max())) {
             if (8 <= it) { break; }
-            GD.Print($"enqueued source emax={order.Emit.Max()}");
+            //GD.Print($"enqueued source emax={order.Emit.Max()}");
             nextsources.Enqueue(order);
             updatemap[order.Source] = currentmap[order.Source];
             it++;
@@ -186,9 +183,8 @@ public class BadLightEngine {
                     for (int itz = spos.Z; IsInBoundII(itz, mins2.Z, maxs2.Z); itz += incr.Z) {
                         Vector3T<int> xyz = new(itx, ity, itz);
                         vmap.DeconstructPosToIndex(xyz, out var wind, out var cind);
-                        if (world.Occupancy[wind, cind]) {
-                            continue;
-                        }
+                        if (world.Occupancy[wind, cind]) { continue; }
+
                         var dist = pos.DistanceTo(xyz);
                         var vx = vmap[new(itx - dir.X, ity, itz)] * dist.X;
                         var vy = vmap[new(itx, ity - dir.Y, itz)] * dist.Y;
@@ -233,7 +229,7 @@ public class BadLightEngine {
 
             lval /= (dist - filter).Square().Sum();
             var lcol = lval * emit * 1.0f;
-            //lcol *= bestlambert;
+            lcol *= bestlambert;
             lmap[wind, cind] = lcol;
         });
         return lmap;

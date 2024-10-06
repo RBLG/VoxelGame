@@ -8,13 +8,16 @@ namespace VoxelGame.scripts.content;
 
 public abstract class IWorldSettings {
     public abstract Vector3T<int> GridSize { get; }
-    public abstract Vector3T<int> Center { get; }
+    public abstract Vector3T<int> GridCenter { get; }
     public abstract Vector3T<int> ChunkSize { get; }
     public abstract Vector3T<byte> ChunkBitSize { get; }
 
-    public Vector3T<int> TotalMaxs => ((GridSize - Center) * ChunkSize) - 1;
-    public Vector3T<int> TotalMins => -Center * ChunkSize;
+    public Vector3T<int> TotalMaxs => ((GridSize - GridCenter) * ChunkSize) - 1;
+    public Vector3T<int> TotalMins => -GridCenter * ChunkSize;
+    public Vector3T<int> TotalCenter => GridCenter * ChunkSize;
     public Vector3T<int> TotalSize => GridSize * ChunkSize;
+    public Vector3T<int> GridMins => -GridCenter;
+    public Vector3T<int> GridMaxs => GridSize - GridCenter - 1;
 }
 
 public class WorldData<SETTINGS, ARRAY, DATA>
@@ -25,7 +28,7 @@ public class WorldData<SETTINGS, ARRAY, DATA>
 
     public CenteredArray3D<ARRAY> Chunks { get; }
     protected WorldData(Func<ARRAY> initer) {
-        Chunks = new(settings.GridSize, settings.Center);
+        Chunks = new(settings.GridSize, settings.GridCenter);
         Chunks.InitAll((i) => initer());
     }
 

@@ -37,7 +37,6 @@ public partial class VoxelEngine : MeshInstance3D {
     public VoxelEngine() : base() {
         BakingLight = false;
         world = World.Import(worldOccupancy, worldColors);
-
         if (!Engine.IsEditorHint()) {
             wble = new(world, this);
             wble.AsyncStartLighting();
@@ -54,7 +53,9 @@ public partial class VoxelEngine : MeshInstance3D {
     }
 
     public override void _ExitTree() {
-        wble?.Stop();
+        if (Engine.IsEditorHint()) {
+            wble?.Stop();
+        }
     }
 
     public override void _Process(double delta) {
@@ -118,18 +119,9 @@ public partial class VoxelEngine : MeshInstance3D {
     public readonly ConcurrentQueue<LayerUpdate> colorLayerUpdates = new();
 
     public void SendColorLayersUpdates() {
-        //bool updated = false;
         while (colorLayerUpdates.TryDequeue(out var update)) {
             worldColorsBuffer.UpdateLayer(update.Layer, update.Index);
-
-            //if (Engine.IsEditorHint() && BakingLight) {
-            //    worldColors?.UpdateLayer(update.Layer, update.Index);
-            //}
-            //updated = true;
         }
-        //if (Engine.IsEditorHint() && BakingLight && updated) {
-        //    ResourceSaver.Save(worldColors);
-        //}
     }
 
     public void PrepareColorLayers(WorldDataVec3 colors) {
