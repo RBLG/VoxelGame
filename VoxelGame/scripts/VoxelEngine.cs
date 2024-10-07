@@ -14,10 +14,6 @@ public partial class VoxelEngine : MeshInstance3D {
     public static readonly Image.Format OccupancyFormat = Image.Format.Rgf;
 
     public static readonly WorldSettings1 settings = new();
-    public static readonly Vector3T<int> csize = settings.GridSize;
-    public static readonly Vector3T<int> size = csize * settings.ChunkSize;
-    public static readonly Vector3T<int> ccenter = csize / 2;
-    public static readonly Vector3T<int> center = ccenter * settings.ChunkSize;
 
     public uint renderDistance = 64;
 
@@ -32,15 +28,11 @@ public partial class VoxelEngine : MeshInstance3D {
     private World world;
     private BadLightEngine? wble;
 
-    private Texture2DArray worldColorsBuffer = GdHelper.NewBlankTexture2DArray(size, false, ColorFormat);
-    private Texture2DArray worldOccupancyBuffer = GdHelper.NewBlankTexture2DArray(csize, false, OccupancyFormat);
+    private Texture2DArray worldColorsBuffer = GdHelper.NewBlankTexture2DArray(settings.TotalSize, false, ColorFormat);
+    private Texture2DArray worldOccupancyBuffer = GdHelper.NewBlankTexture2DArray(settings.GridSize, false, OccupancyFormat);
     public VoxelEngine() : base() {
         BakingLight = false;
         world = World.Import(worldOccupancy, worldColors);
-        if (!Engine.IsEditorHint()) {
-            wble = new(world, this);
-            wble.AsyncStartLighting();
-        }
     }
 
     public override void _Ready() {
@@ -50,12 +42,15 @@ public partial class VoxelEngine : MeshInstance3D {
         InitShaderSettings();
         UpdateGpuOccupancy();
         UpdateGpuColors();
+
+        if (!Engine.IsEditorHint()) {
+            wble = new(world, this);
+            wble.AsyncStartLighting();
+        }
     }
 
     public override void _ExitTree() {
-        if (Engine.IsEditorHint()) {
-            wble?.Stop();
-        }
+        wble?.Stop();
     }
 
     public override void _Process(double delta) {
@@ -75,27 +70,26 @@ public partial class VoxelEngine : MeshInstance3D {
         mat.SetShaderParameter("debug_no_color", debugNoColor);
         mat.SetShaderParameter("debug_show_steps", debugShowSteps);
         RenderingServer.GlobalShaderParameterSet("render_distance", renderDistance);
-        RenderingServer.GlobalShaderParameterSet("world_center", new Vector3(center.X, center.Y, center.Z));
+        RenderingServer.GlobalShaderParameterSet("world_center", settings.TotalCenter.ToVector3());
 
         RenderingServer.GlobalShaderParameterSet("world_colors", worldColorsBuffer);
         RenderingServer.GlobalShaderParameterSet("world_opacity", worldOccupancyBuffer);
     }
 
     public void UpdateGpuOccupancy() {
-        var mins = -world.Occupancy.Chunks.Center;
-        var csize = world.Occupancy.Chunks.Size;
+        var mins = settings.GridMins;
+        var gsize = settings.GridSize;
 
-        for (int itz = 0; itz < csize.Z; itz++) {
-            Image img = Image.CreateEmpty(csize.X, csize.Y, false, Image.Format.Rgf);
-
-            for (int itx = 0; itx < csize.X; itx++) {
-                for (int ity = 0; ity < csize.Y; ity++) {
+        for (int itz = 0; itz < gsize.Z; itz++) {
+            Image img = Image.CreateEmpty(gsize.X, gsize.Y, false, OccupancyFormat);
+            for (int itx = 0; itx < gsize.X; itx++) {
+                for (int ity = 0; ity < gsize.Y; ity++) {
                     var xyz = mins + (itx, ity, itz);
 
-                    ulong opacity = world.Occupancy.Chunks[xyz].Data;
+                    ulong occupancy = world.Occupancy.Chunks[xyz].Data;
 
-                    uint data1 = (uint)opacity;
-                    uint data2 = (uint)(opacity >> 32);
+                    uint data1 = (uint)occupancy;
+                    uint data2 = (uint)(occupancy >> 32);
 
                     Color cdata = new() {
                         R = BitConverter.UInt32BitsToSingle(data1),
@@ -125,16 +119,15 @@ public partial class VoxelEngine : MeshInstance3D {
     }
 
     public void PrepareColorLayers(WorldDataVec3 colors) {
-        var mins = colors.Settings.TotalMins;
-        var size = colors.Settings.TotalSize;
+        var tmins = settings.TotalMins;
+        var tsize = settings.TotalSize;
 
         int count = 0;
-        for (int itz = 0; itz < size.Z; itz++) {
-            Image img = Image.CreateEmpty(size.X, size.Y, false, ColorFormat);
-
-            for (int itx = 0; itx < size.X; itx++) {
-                for (int ity = 0; ity < size.Y; ity++) {
-                    var xyz = mins + (itx, ity, itz);
+        for (int itz = 0; itz < tsize.Z; itz++) {
+            Image img = Image.CreateEmpty(tsize.X, tsize.Y, false, ColorFormat);
+            for (int itx = 0; itx < tsize.X; itx++) {
+                for (int ity = 0; ity < tsize.Y; ity++) {
+                    var xyz = tmins + (itx, ity, itz);
                     colors.DeconstructPosToIndex(xyz, out var wind, out var cind);
 
                     var fcol = colors[wind, cind];

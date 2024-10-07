@@ -48,9 +48,9 @@ public class BadLightEngine {
     public void ComputeLighting() {
         if (!Enabled) { return; }
 
-        bool[] empty = new bool[] { true };
-        world.Voxels.ForAll((xyz) => { empty[0] &= world.Voxels[xyz].color == 0; });
-        GD.Print($"empty={empty[0]}");
+        //bool[] empty = new bool[] { true };
+        //world.Voxels.ForAll((xyz) => { empty[0] &= world.Voxels[xyz].color == 0; });
+        //GD.Print($"empty={empty[0]}");
 
         GD.Print("Initiating light maps");
         WorldDataVec3 currentmap = new((wind, cind) => world.Voxels[wind, cind].color);
@@ -126,7 +126,7 @@ public class BadLightEngine {
 
         int it = 0;
         foreach (var order in orders.OrderBy((o) => -o.Emit.Max())) {
-            if (8 <= it) { break; }
+            if (20 <= it) { break; }
             //GD.Print($"enqueued source emax={order.Emit.Max()}");
             nextsources.Enqueue(order);
             updatemap[order.Source] = currentmap[order.Source];
@@ -147,18 +147,18 @@ public class BadLightEngine {
     }
 
     public void ComputeOneLightmap(Vector3T<int> source, Vector3T<float> emit, Vector3T<int> filter) {
-        WorldDataFloat vmap = ComputeVisibility(source, filter);
+        WorldDataVec3 vmap = ComputeVisibility(source, filter);
         WorldDataVec3 cmap = ComputeLightmap(vmap, source, emit, filter);
 
         mergequeue.Enqueue(new(cmap));
     }
 
-    public WorldDataFloat ComputeVisibility(Vector3T<int> pos, Vector3T<int> filter) {//vec3 dir, decayrate
-        WorldDataFloat vmap = WorldDataFloat.UnsafeNew();
+    public WorldDataVec3 ComputeVisibility(Vector3T<int> pos, Vector3T<int> filter) {//vec3 dir, decayrate
+        WorldDataVec3 vmap = WorldDataVec3.UnsafeNew();
         var mins = vmap.Settings.TotalMins;
         var maxs = vmap.Settings.TotalMaxs;
 
-        vmap[pos] = 1f;
+        vmap[pos] = new(1f);
 
         foreach (var dir in dirs) {
             bool filtered;
@@ -169,7 +169,7 @@ public class BadLightEngine {
             //union incl filter
             // !(filter == 0) && filter.All(dir, (v, d) => v == 0 || v == -d); 
             if (filtered) {
-                continue;
+                //continue;
             }
 
             var adir = dir.Abs();
@@ -186,11 +186,11 @@ public class BadLightEngine {
                         if (world.Occupancy[wind, cind]) { continue; }
 
                         var dist = pos.DistanceTo(xyz);
-                        var vx = vmap[new(itx - dir.X, ity, itz)] * dist.X;
-                        var vy = vmap[new(itx, ity - dir.Y, itz)] * dist.Y;
-                        var vz = vmap[new(itx, ity, itz - dir.Z)] * dist.Z;
+                        var vx = vmap[new(itx - dir.X, ity, itz)].X * dist.X;
+                        var vy = vmap[new(itx, ity - dir.Y, itz)].X * dist.Y;
+                        var vz = vmap[new(itx, ity, itz - dir.Z)].X * dist.Z;
 
-                        vmap[wind, cind] = (vx + vy + vz) / dist.Sum();
+                        vmap[wind, cind] = new((vx + vy + vz) / dist.Sum(), 0, 0);
                     }
                 }
             }
@@ -203,14 +203,16 @@ public class BadLightEngine {
         return min <= pos && pos <= max;
     }
 
-    public WorldDataVec3 ComputeLightmap(WorldDataFloat vmap, Vector3T<int> source, Vector3T<float> emit, Vector3T<int> filter) {
-        WorldDataVec3 lmap = WorldDataVec3.UnsafeNew();
+    public WorldDataVec3 ComputeLightmap(WorldDataVec3 vmap, Vector3T<int> source, Vector3T<float> emit, Vector3T<int> filter) {
+        WorldDataVec3 lmap = vmap;
         lmap.ForAll((xyz) => {// light_color * light_intensity * GBV_value * lambert / distance^2
             if (xyz == source) { return; }
             lmap.DeconstructPosToIndex(xyz, out var wind, out var cind);
             if (world.Occupancy[wind, cind]) { return; }
 
-            float lval = vmap[wind, cind];
+            float lval = vmap[wind, cind].X;
+            vmap[wind, cind] = new(0);
+            lval = Mathf.Clamp(lval * 10 - 5, 0, 1);
             if (lval == 0) { return; }
 
             var dist = xyz - source;
@@ -218,16 +220,16 @@ public class BadLightEngine {
 
             var adjs = world.Adjacency[wind, cind]; //TODO also do source (filter) lambert
             if (adjs.IsEmpty()) { return; }
-            var l1 = 0 <= dist.X && adjs[0] ? GetLambert(dist, new(1, 0, 0), filter) : 0;
-            var l2 = 0 <= dist.Y && adjs[1] ? GetLambert(dist, new(0, 1, 0), filter) : 0;
-            var l3 = 0 <= dist.Z && adjs[2] ? GetLambert(dist, new(0, 0, 1), filter) : 0;
-            var l4 = 0 >= dist.X && adjs[3] ? GetLambert(dist, new(-1, 0, 0), filter) : 0;
-            var l5 = 0 >= dist.Y && adjs[4] ? GetLambert(dist, new(0, -1, 0), filter) : 0;
-            var l6 = 0 >= dist.Z && adjs[5] ? GetLambert(dist, new(0, 0, -1), filter) : 0;
+            var l1 = adjs[0] ? GetLambert(dist, new(1, 0, 0), filter) : 0;
+            var l2 = adjs[1] ? GetLambert(dist, new(0, 1, 0), filter) : 0;
+            var l3 = adjs[2] ? GetLambert(dist, new(0, 0, 1), filter) : 0;
+            var l4 = adjs[3] ? GetLambert(dist, new(-1, 0, 0), filter) : 0;
+            var l5 = adjs[4] ? GetLambert(dist, new(0, -1, 0), filter) : 0;
+            var l6 = adjs[5] ? GetLambert(dist, new(0, 0, -1), filter) : 0;
             //float avglambert = (l1 + l2 + l3 + l4 + l5 + l6) / adjs.Sum(); //TODO remove adjs that arent facing the ray
             float bestlambert = Math.Max(Math.Max(Mathf.Max(l1, l2), Mathf.Max(l3, l4)), Mathf.Max(l5, l6));
 
-            lval /= (dist - filter).Square().Sum();
+            lval /= dist.Square().Sum() + 1;
             var lcol = lval * emit * 1.0f;
             lcol *= bestlambert;
             lmap[wind, cind] = lcol;
@@ -236,12 +238,13 @@ public class BadLightEngine {
     }
 
     public static float GetLambert(Vector3T<int> tdist, Vector3T<int> tnormal, Vector3T<int> tfilter) {
-        if (!(tfilter == tnormal)) {
-            tdist += tnormal.Do(tfilter, (n, f) => (n == f) ? n : (n - f));
+        if (tfilter == tnormal) {
+            return 0;
         }
+        tdist += tnormal;//.Do(tfilter, (n, f) => (n == f) ? n : (n - f));
 
-        Vector3 normal = new(tnormal.X, tnormal.Y, tnormal.Z);
-        Vector3 dist = new(tdist.X, tdist.Y, tdist.Z);
+        Vector3 normal = tnormal.ToVector3();
+        Vector3 dist = tdist.ToVector3();
         dist = dist.Normalized();
 
         //Ax* Bx +Ay * By + Az * Bz
@@ -261,7 +264,9 @@ public class BadLightEngine {
 
     public static void MergeColormap(WorldDataVec3 currentmap, WorldDataVec3 comap) {
         currentmap.ForAll((wind, cind) => {
-            currentmap[wind, cind] += comap[wind, cind];
+            var color = comap[wind, cind];
+            if (color == 0) { return; }
+            currentmap[wind, cind] += color;
         });
     }
 

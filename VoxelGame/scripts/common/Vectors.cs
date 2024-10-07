@@ -133,6 +133,8 @@ public struct Vector3T<TYPE> where TYPE : INumber<TYPE> {
 
     public readonly double Length => Math.Sqrt(Convert.ToDouble(LengthSquared()));
 
+    public readonly Godot.Vector3 ToVector3() => new(Convert.ToSingle(X), Convert.ToSingle(Y), Convert.ToSingle(Z));
+
 }
 
 public static class GMath {

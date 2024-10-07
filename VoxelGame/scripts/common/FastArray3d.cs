@@ -31,8 +31,8 @@ public class FastArray3d<OBJ> : IArray3d<OBJ> {
 
     public Vector3T<int> GetXyzFromIndex(int it) {
         var rtn = Masks.Do((m) => it & m);
-        rtn.Y >>= BitSize.X;
-        rtn.Z >>= BitSizeXY;
+        rtn.Y >>>= BitSize.X;
+        rtn.Z >>>= BitSizeXY;
         return rtn;
     }
 

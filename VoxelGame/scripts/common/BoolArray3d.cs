@@ -1,5 +1,3 @@
-using Godot;
-using System;
 using System.Numerics;
 
 namespace VoxelGame.scripts.common;
@@ -14,11 +12,11 @@ public class BoolArray3d : IArray3d<bool> {
 
     public Vector3T<int> GetXyzFromIndex(int it) {
         var rtn = Masks.Do((m) => it & m);
-        rtn.Y >>= 2;
-        rtn.Z >>= 4;
+        rtn.Y >>>= 2;
+        rtn.Z >>>= 4;
         return rtn;
     }
-    
+
     public bool this[Vector3T<int> xyz] {
         get => this[GetIndexFromXyz(xyz)];
         set => this[GetIndexFromXyz(xyz)] = value;
@@ -35,5 +33,6 @@ public class BoolArray3d : IArray3d<bool> {
 
     public int Sum() => BitOperations.PopCount(data);
 
+    public bool IsEmpty() => data == 0;
 
 }

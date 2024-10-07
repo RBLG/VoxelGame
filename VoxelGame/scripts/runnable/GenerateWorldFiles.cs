@@ -12,12 +12,12 @@ public partial class GenerateWorldFiles : EditorScript {
     public override void _Run() {
         GD.Print("creating/overriding files");
         Texture2DArray occupancy = ResourceLoader.Exists(ocuppath) ? GD.Load<Texture2DArray>(ocuppath) : new();
-        GdHelper.CleanTexture(occupancy, VoxelEngine.csize, false, VoxelEngine.OccupancyFormat);
+        GdHelper.CleanTexture(occupancy, VoxelEngine.settings.GridSize, false, VoxelEngine.OccupancyFormat);
         occupancy.TakeOverPath(ocuppath);
         occupancy.ResourcePath = ocuppath;
 
         Texture2DArray colors = ResourceLoader.Exists(colspath) ? GD.Load<Texture2DArray>(colspath) : new();
-        GdHelper.CleanTexture(colors, VoxelEngine.size, false, VoxelEngine.ColorFormat);
+        GdHelper.CleanTexture(colors, VoxelEngine.settings.TotalSize, false, VoxelEngine.ColorFormat);
         colors.TakeOverPath(colspath);
         colors.ResourcePath = colspath;
 
