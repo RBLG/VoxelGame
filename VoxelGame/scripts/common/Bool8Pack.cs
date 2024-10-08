@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System;
+using System.Numerics;
 
 namespace VoxelGame.scripts.common;
 public class Bool8Pack {
@@ -29,5 +30,7 @@ public class Bool8Pack {
     public int Sum() => BitOperations.PopCount(data);
 
     public bool IsEmpty() => data == 0u;
+
+    public byte Data => data;
 }
 

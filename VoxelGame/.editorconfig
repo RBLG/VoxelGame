@@ -1,0 +1,4 @@
+﻿[*.cs]
+
+# CS8785: Le générateur n'a pas pu générer la source.
+dotnet_diagnostic.CS8785.severity = none

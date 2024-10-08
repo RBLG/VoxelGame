@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VoxelGame", "VoxelGame.cspr
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleApp1", "..\ConsoleApp1\ConsoleApp1.csproj", "{046407B3-0A81-4EDD-9334-7142DF857C34}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VoxelGameTest", "..\VoxelGameTest\VoxelGameTest.csproj", "{A187D404-11B8-4EDB-8627-4AA8C4CEC449}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,6 +33,14 @@ Global
 		{046407B3-0A81-4EDD-9334-7142DF857C34}.ExportRelease|Any CPU.Build.0 = Release|Any CPU
 		{046407B3-0A81-4EDD-9334-7142DF857C34}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{046407B3-0A81-4EDD-9334-7142DF857C34}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A187D404-11B8-4EDB-8627-4AA8C4CEC449}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A187D404-11B8-4EDB-8627-4AA8C4CEC449}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A187D404-11B8-4EDB-8627-4AA8C4CEC449}.ExportDebug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A187D404-11B8-4EDB-8627-4AA8C4CEC449}.ExportDebug|Any CPU.Build.0 = Debug|Any CPU
+		{A187D404-11B8-4EDB-8627-4AA8C4CEC449}.ExportRelease|Any CPU.ActiveCfg = Release|Any CPU
+		{A187D404-11B8-4EDB-8627-4AA8C4CEC449}.ExportRelease|Any CPU.Build.0 = Release|Any CPU
+		{A187D404-11B8-4EDB-8627-4AA8C4CEC449}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A187D404-11B8-4EDB-8627-4AA8C4CEC449}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

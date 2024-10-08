@@ -49,7 +49,7 @@ public class WorldGenerator1 {
             for (int itz = -10; itz < 13; itz++) {
                 Vector3T<int> xyz = new(itx, -30, itz);
 
-                world.Voxels[xyz].color = new(0.8f, 0.7f, 0.6f);
+                world.Voxels[xyz].color = new(0.8f, 0.7f, 0.2f);
                 world.Occupancy[xyz] = true;
             }
         }
@@ -58,7 +58,7 @@ public class WorldGenerator1 {
             for (int itz = -10; itz < 20; itz++) {
                 Vector3T<int> xyz = new(itx, -40, itz);
 
-                world.Voxels[xyz].color = new(0.8f, 0.7f, 0.6f);
+                world.Voxels[xyz].color = new(0.1f, 0.7f, 0.6f);
                 world.Occupancy[xyz] = true;
             }
         }

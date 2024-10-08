@@ -35,13 +35,13 @@ public class World {
         var totalMax = settings.TotalMaxs;
         var totalMin = settings.TotalMins;
         Voxels.ForAll((xyz) => {
-            bool a1 = (xyz.X != totalMax.X) && Occupancy[xyz + (1, 0, 0)];
-            bool a2 = (xyz.Y != totalMax.Y) && Occupancy[xyz + (0, 1, 0)];
-            bool a3 = (xyz.Z != totalMax.Z) && Occupancy[xyz + (0, 0, 1)];
-            bool a4 = (xyz.X != totalMin.X) && Occupancy[xyz - (1, 0, 0)];
-            bool a5 = (xyz.Y != totalMin.Y) && Occupancy[xyz - (0, 1, 0)];
-            bool a6 = (xyz.Z != totalMin.Z) && Occupancy[xyz - (0, 0, 1)];
-            Adjacency[xyz].Set(a1, a2, a3, a4, a5, a6);
+            bool a0 = (xyz.X != totalMax.X) && Occupancy[xyz + (1, 0, 0)];
+            bool a1 = (xyz.Y != totalMax.Y) && Occupancy[xyz + (0, 1, 0)];
+            bool a2 = (xyz.Z != totalMax.Z) && Occupancy[xyz + (0, 0, 1)];
+            bool a3 = (xyz.X != totalMin.X) && Occupancy[xyz - (1, 0, 0)];
+            bool a4 = (xyz.Y != totalMin.Y) && Occupancy[xyz - (0, 1, 0)];
+            bool a5 = (xyz.Z != totalMin.Z) && Occupancy[xyz - (0, 0, 1)];
+            Adjacency[xyz].Set(a0, a1, a2, a3, a4, a5);
         });
     }
 
@@ -149,27 +149,4 @@ public class Voxel {
     public Vector2T<byte> uv = new(3, 3);
     public Vector3T<byte> emit; //just a float?
 }
-
-
-
-
-[Obsolete("use WorldBoolData<WorldSettings1> and aliases")]
-public class WorldBoolData1 : WorldBoolData<WorldSettings1> {
-    protected WorldBoolData1() : base() { }
-    public WorldBoolData1(Func<int, int, bool> filler) : base(filler) { }
-    public WorldBoolData1(Func<Vector3T<int>, bool> filler) : base(filler) { }
-    public new static WorldBoolData1 UnsafeNew() => new();
-
-}
-
-[Obsolete("use FastWorldData<WorldSettings1, DATA> and aliases")]
-public class WorldData1<DATA> : FastWorldData<WorldSettings1, DATA> {
-
-    protected WorldData1() : base() { }
-    public WorldData1(Func<int, int, DATA> filler) : base(filler) { }
-    public WorldData1(Func<Vector3T<int>, DATA> filler) : base(filler) { }
-    public new static WorldData1<DATA> UnsafeNew() => new();
-
-}
-
 

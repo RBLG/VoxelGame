@@ -89,7 +89,7 @@ public class BadLightEngine {
     }
 
     public void QueueSignificantSources(WorldDataVec3 updatemap, WorldDataVec3 currentmap) {
-        float[] top = new float[] { 0.05f };
+        float[] top = new float[] { 0.15f };
         List<LightUpdateOrder> orders = new();
 
         updatemap.ForAll((xyz) => {
@@ -153,12 +153,12 @@ public class BadLightEngine {
         mergequeue.Enqueue(new(cmap));
     }
 
-    public WorldDataVec3 ComputeVisibility(Vector3T<int> pos, Vector3T<int> filter) {//vec3 dir, decayrate
+    public WorldDataVec3 ComputeVisibility(Vector3T<int> source, Vector3T<int> filter) {//vec3 dir, decayrate
         WorldDataVec3 vmap = WorldDataVec3.UnsafeNew();
         var mins = vmap.Settings.TotalMins;
         var maxs = vmap.Settings.TotalMaxs;
 
-        vmap[pos] = new(1f);
+        vmap[source] = new(1f);
 
         foreach (var dir in dirs) {
             bool filtered;
@@ -173,7 +173,7 @@ public class BadLightEngine {
             }
 
             var adir = dir.Abs();
-            var spos = pos + dir;
+            var spos = source + dir;
             var maxs2 = dir.Do(maxs, spos, (d, max, spo) => (d == 0) ? spo : max);
             var mins2 = dir.Do(mins, spos, (d, min, spo) => (d == 0) ? spo : min);
 
@@ -185,7 +185,7 @@ public class BadLightEngine {
                         vmap.DeconstructPosToIndex(xyz, out var wind, out var cind);
                         if (world.Occupancy[wind, cind]) { continue; }
 
-                        var dist = pos.DistanceTo(xyz);
+                        var dist = source.DistanceTo(xyz);
                         var vx = vmap[new(itx - dir.X, ity, itz)].X * dist.X;
                         var vy = vmap[new(itx, ity - dir.Y, itz)].X * dist.Y;
                         var vz = vmap[new(itx, ity, itz - dir.Z)].X * dist.Z;
@@ -196,6 +196,7 @@ public class BadLightEngine {
             }
 
         }
+        vmap[source] = new(0f);
         return vmap;
     }
 
