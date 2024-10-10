@@ -26,7 +26,7 @@ public partial class VoxelEngine : MeshInstance3D {
     private Texture2DArray worldOccupancy = GD.Load<Texture2DArray>("res://voxels/world_1_occupancy.tres");
 
     private World world;
-    private MidLightEngine? wble;
+    private MidPlusLightEngine? wble;
 
     private Texture2DArray worldColorsBuffer = GdHelper.NewBlankTexture2DArray(settings.TotalSize, false, ColorFormat);
     private Texture2DArray worldOccupancyBuffer = GdHelper.NewBlankTexture2DArray(settings.GridSize, false, OccupancyFormat);
