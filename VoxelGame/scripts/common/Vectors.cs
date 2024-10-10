@@ -135,6 +135,9 @@ public struct Vector3T<TYPE> where TYPE : INumber<TYPE> {
 
     public readonly Godot.Vector3 ToVector3() => new(Convert.ToSingle(X), Convert.ToSingle(Y), Convert.ToSingle(Z));
 
+    public override readonly string ToString() => $"Vec3<{typeof(TYPE).Name}>({X},{Y},{Z})";
+    public readonly string ToShortString() => $"({X},{Y},{Z})";
+
 }
 
 public static class GMath {
