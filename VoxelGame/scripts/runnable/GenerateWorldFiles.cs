@@ -4,6 +4,7 @@ using VoxelGame.scripts.content;
 
 namespace voxelgame.scripts.runnable;
 
+#if DEBUG
 [Tool]
 public partial class GenerateWorldFiles : EditorScript {
     public static readonly string ocuppath = "res://voxels/world_1_occupancy.tres";
@@ -35,3 +36,5 @@ public partial class GenerateWorldFiles : EditorScript {
         }
     }
 }
+
+#endif

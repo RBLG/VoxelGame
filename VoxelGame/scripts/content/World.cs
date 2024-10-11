@@ -93,12 +93,12 @@ public class World {
         var colsize = settings.TotalSize;
         var colsimg = new Vector3T<int>(colors.GetWidth(), colors.GetHeight(), colors.GetLayers());
         if (!(colsize == colsimg)) {
-            GD.PrintErr($"world import failed: occupancy size was ({colsimg.X}/{colsimg.Y}/{colsimg.Z}) expected ({colsize.X}/{colsize.Y}/{colsize.Z})");
+            GD.PrintErr($"world import failed: occupancy size was ({colsimg}) expected ({colsize})");
         }
         var occsize = settings.GridSize;
         var occsimg = new Vector3T<int>(occupancy.GetWidth(), occupancy.GetHeight(), occupancy.GetLayers());
         if (!(occsize == occsimg)) {
-            GD.PrintErr($"world import failed: colors size was ({occsimg.X}/{occsimg.Y}/{occsimg.Z}) expected ({occsize.X}/{occsize.Y}/{occsize.Z})");
+            GD.PrintErr($"world import failed: colors size was ({occsimg}) expected ({occsize})");
         }
         if (!(colsize == colsimg) || !(occsize == occsimg)) {
             return world;
@@ -141,7 +141,7 @@ public class WorldSettings1 : IWorldSettings {
     public override Vector3T<int> GridSize => new(40, 40, 20);
     public override Vector3T<int> GridCenter => GridSize / 2;
     public override Vector3T<int> ChunkSize => new(4);
-    public override Vector3T<byte> ChunkBitSize => new(2);
+    public override Vector3T<int> ChunkBitSize => new(2);
 }
 
 public class Voxel {

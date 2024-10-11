@@ -12,7 +12,7 @@ public class CenteredArray3D<OBJ> : IArray3d<OBJ> {
     public Vector3T<int> Size { get; }
     public Vector3T<int> Center { get; }
 
-    public int Length { get => totalLength; }
+    public int Length => totalLength;
 
     public OBJ[] Data => data;
 
@@ -26,20 +26,12 @@ public class CenteredArray3D<OBJ> : IArray3d<OBJ> {
         data = new OBJ[totalLength];
     }
 
-    public void Initialize() => data.Initialize();
-
     public int GetIndexFromXyz(Vector3T<int> xyz) {
-        int x2 = xyz.X + Center.X;
-        int y2 = xyz.Y + Center.Y;
-        int z2 = xyz.Z + Center.Z;
-        int index = x2 + y2 * rowLength + z2 * planeLength;
-
-        if (index < 0 || totalLength <= index) {
-            GD.Print($"xyz:{x2}:{y2}:{z2} while c:{Center.X}:{Center.Y}:{Center.Z} and s:{Size.X}:{Size.Y}:{Size.Z}");
-        }
-
-        return index;
+        xyz += Center;
+        return xyz.X + xyz.Y * rowLength + xyz.Z * planeLength;
+        //return ((xyz + Center) * (1, rowLength, planeLength)).Sum();
     }
+
 
     public Vector3T<int> GetXyzFromIndex(int it) {
         int z = it;
@@ -66,5 +58,12 @@ public class CenteredArray3D<OBJ> : IArray3d<OBJ> {
         for (int it = 0; it < totalLength; it++) {
             data[it] = filler(it);
         }
+    }
+}
+
+public static class CenteredArray3D {
+    public static int GetIndexFromXyz(Vector3T<int> xyz, Vector3T<int> Center, int rowLength, int planeLength) {
+        xyz += Center;
+        return xyz.X + xyz.Y * rowLength + xyz.Z * planeLength;
     }
 }

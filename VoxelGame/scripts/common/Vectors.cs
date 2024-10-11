@@ -1,10 +1,9 @@
-﻿using Godot;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Numerics;
-using VoxelGame.scripts.content;
 
 namespace VoxelGame.scripts.common;
+
+
 public struct Vector2T<TYPE> {
     public TYPE X, Y;
     public Vector2T(TYPE xyz) : this(xyz, xyz) { }
@@ -160,5 +159,26 @@ public static class GMath {
     }
 
     public static Vector3T<uint> ToUint(this Vector3T<int> vec) => vec.Do((v) => (uint)v);
-    public static Vector3T<int> ToInt(this Vector3T<uint> vec) => vec.Do((v) => (int)v);
+    public static Vector3T<int> ToInt(this Vector3T<uint> vec) => new((int)vec.X, (int)vec.Y, (int)vec.Z);
+    public static Vector3T<TYPE> Not<TYPE>(this Vector3T<TYPE> vec) where TYPE : IBinaryNumber<TYPE> => new(~vec.X, ~vec.Y, ~vec.Z);
+    public static Vector3T<TYPE> And<TYPE>(this Vector3T<TYPE> vec, Vector3T<TYPE> mask) where TYPE : IBinaryNumber<TYPE>
+        => new(vec.X & mask.X, vec.Y & mask.Y, vec.Z & mask.Z);
+    public static Vector3T<TYPE> Or<TYPE>(this Vector3T<TYPE> vec, Vector3T<TYPE> mask) where TYPE : IBinaryNumber<TYPE>
+        => new(vec.X | mask.X, vec.Y | mask.Y, vec.Z | mask.Z);
+    public static Vector3T<TYPE> And<TYPE>(this Vector3T<TYPE> vec, TYPE mask) where TYPE : IBinaryNumber<TYPE>
+        => new(vec.X & mask, vec.Y & mask, vec.Z & mask);
+    public static Vector3T<TYPE> Or<TYPE>(this Vector3T<TYPE> vec, TYPE mask) where TYPE : IBinaryNumber<TYPE>
+        => new(vec.X | mask, vec.Y | mask, vec.Z | mask);
+    public static Vector3T<TYPE> LogicalRightShift<TYPE>(this Vector3T<TYPE> vec, Vector3T<int> shift) where TYPE : INumber<TYPE>, IShiftOperators<TYPE, int, TYPE>
+        => new(vec.X >>> shift.X, vec.Y >>> shift.Y, vec.Z >>> shift.Z);
+    public static Vector3T<TYPE> LogicalRightShift<TYPE>(this Vector3T<TYPE> vec, int shift) where TYPE : INumber<TYPE>, IShiftOperators<TYPE, int, TYPE>
+        => new(vec.X >>> shift, vec.Y >>> shift, vec.Z >>> shift);
+    public static Vector3T<TYPE> ArithmRightShift<TYPE>(this Vector3T<TYPE> vec, Vector3T<int> shift) where TYPE : INumber<TYPE>, IShiftOperators<TYPE, int, TYPE>
+        => new(vec.X >> shift.X, vec.Y >> shift.Y, vec.Z >> shift.Z);
+    public static Vector3T<TYPE> ArithmRightShift<TYPE>(this Vector3T<TYPE> vec, int shift) where TYPE : INumber<TYPE>, IShiftOperators<TYPE, int, TYPE>
+        => new(vec.X >> shift, vec.Y >> shift, vec.Z >> shift);
+    public static Vector3T<TYPE> LeftShift<TYPE>(this Vector3T<TYPE> vec, Vector3T<int> shift) where TYPE : INumber<TYPE>, IShiftOperators<TYPE, int, TYPE>
+        => new(vec.X << shift.X, vec.Y << shift.Y, vec.Z << shift.Z);
+    public static Vector3T<TYPE> LeftShift<TYPE>(this Vector3T<TYPE> vec, int shift) where TYPE : INumber<TYPE>, IShiftOperators<TYPE, int, TYPE>
+        => new(vec.X << shift, vec.Y << shift, vec.Z << shift);
 }

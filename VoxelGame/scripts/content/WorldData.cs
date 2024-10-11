@@ -1,23 +1,22 @@
-﻿using Godot;
-using System;
-using System.ComponentModel;
-using System.Drawing;
+﻿using System;
+using System.Runtime.CompilerServices;
 using VoxelGame.scripts.common;
 
 namespace VoxelGame.scripts.content;
 
+using Ivec3 = Vector3T<int>;
 public abstract class IWorldSettings {
-    public abstract Vector3T<int> GridSize { get; }
-    public abstract Vector3T<int> GridCenter { get; }
-    public abstract Vector3T<int> ChunkSize { get; }
-    public abstract Vector3T<byte> ChunkBitSize { get; }
+    public abstract Ivec3 GridSize { get; }
+    public abstract Ivec3 GridCenter { get; }
+    public abstract Ivec3 ChunkSize { get; }
+    public abstract Vector3T<int> ChunkBitSize { get; }
 
-    public Vector3T<int> TotalMaxs => ((GridSize - GridCenter) * ChunkSize) - 1;
-    public Vector3T<int> TotalMins => -GridCenter * ChunkSize;
-    public Vector3T<int> TotalCenter => GridCenter * ChunkSize;
-    public Vector3T<int> TotalSize => GridSize * ChunkSize;
-    public Vector3T<int> GridMins => -GridCenter;
-    public Vector3T<int> GridMaxs => GridSize - GridCenter - 1;
+    public Ivec3 TotalMaxs => ((GridSize - GridCenter) * ChunkSize) - 1;
+    public Ivec3 TotalMins => -GridCenter * ChunkSize;
+    public Ivec3 TotalCenter => GridCenter * ChunkSize;
+    public Ivec3 TotalSize => GridSize * ChunkSize;
+    public Ivec3 GridMins => -GridCenter;
+    public Ivec3 GridMaxs => GridSize - GridCenter - 1;
 }
 
 public class WorldData<SETTINGS, ARRAY, DATA>
@@ -32,7 +31,7 @@ public class WorldData<SETTINGS, ARRAY, DATA>
         Chunks.InitAll((i) => initer());
     }
 
-    public WorldData(Func<ARRAY> initer, Func<Vector3T<int>, DATA> filler) : this(initer) {
+    public WorldData(Func<ARRAY> initer, Func<Ivec3, DATA> filler) : this(initer) {
         ForAll((xyz) => this[xyz] = filler(xyz));
     }
     public WorldData(Func<ARRAY> initer, Func<int, int, DATA> filler) : this(initer) {
@@ -42,27 +41,44 @@ public class WorldData<SETTINGS, ARRAY, DATA>
     protected static WorldData<SETTINGS, ARRAY, DATA> UnsafeNew(Func<ARRAY> initer) => new(initer);
 
 
-
-    public static void DeconstructPos(Vector3T<int> pos, out Vector3T<int> wpos, out Vector3T<int> cpos) {
-        if (settings.ChunkSize == 4) {
-            cpos = pos.Do((val) => val & 0b11);
-            wpos = pos.Do(cpos, (val, cval) => (val - cval) >> 2);
-            return;
-        } else {
-            cpos = pos.Modulo(settings.ChunkSize);
-            wpos = (pos - cpos) / settings.ChunkSize;
-            return;
-        }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void DeconstructPos(Ivec3 pos, out Ivec3 wpos, out Ivec3 cpos) {
+        //if (chunkSizeIs4) {
+        cpos = pos.And(0b11);
+        wpos = pos.ArithmRightShift(2);
+        //cpos = pos.Do((val) => val & 0b11);
+        //wpos = pos.Do(cpos, (val, cval) => (val - cval) >> 2);
+        //} else {
+        //    cpos = pos.Modulo(settings.ChunkSize);
+        //    wpos = (pos - cpos) / settings.ChunkSize;
+        //}
     }
 
+    //private static readonly bool chunkSizeIs4 = settings.ChunkSize == 4;
+    private static readonly int chunkBitSizeX = settings.ChunkBitSize.X;
+    private static readonly int chunkBitSizeXY = settings.ChunkBitSize.X + settings.ChunkBitSize.Y;
+    private static readonly Ivec3 gridCenter = settings.GridCenter;
+    private static readonly int gridRow = settings.GridSize.X;
+    private static readonly int gridPlane = settings.GridSize.X * settings.GridSize.Y;
 
-    public void DeconstructPosToIndex(Vector3T<int> pos, out int wind, out int cind) {
+    public void DeconstructPosToIndex(Ivec3 pos, out int wind, out int cind) {
         DeconstructPos(pos, out var wpos, out var cpos);
+
         wind = Chunks.GetIndexFromXyz(wpos);
         cind = Chunks[wind].GetIndexFromXyz(cpos);
     }
 
-    public DATA this[Vector3T<int> xyz] {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static (int wind, int cind) StaticDeconstructPosToIndex(Ivec3 pos /*, out int wind, out int cind*/) {
+        Ivec3 cpos = pos.And(0b11);
+        Ivec3 wpos = pos.ArithmRightShift(2);
+
+        int wind = CenteredArray3D.GetIndexFromXyz(wpos, gridCenter, gridRow, gridPlane);
+        int cind = FastArray3d.GetIndexFromXyz(cpos, chunkBitSizeX, chunkBitSizeXY); //TODO not certain to work, oh well
+        return (wind, cind);
+    }
+
+    public DATA this[Ivec3 xyz] {
         get {
             DeconstructPos(xyz, out var wpos, out var cpos);
             return Chunks[wpos][cpos];
@@ -77,7 +93,7 @@ public class WorldData<SETTINGS, ARRAY, DATA>
         set => Chunks[wind][cind] = value;
     }
 
-    public void ForAll(Action<Vector3T<int>> action) {
+    public void ForAll(Action<Ivec3> action) {
         for (int itx = settings.TotalMins.X; itx <= settings.TotalMaxs.X; itx++) {
             for (int ity = settings.TotalMins.Y; ity <= settings.TotalMaxs.Y; ity++) {
                 for (int itz = settings.TotalMins.Z; itz <= settings.TotalMaxs.Z; itz++) {
@@ -96,15 +112,13 @@ public class WorldData<SETTINGS, ARRAY, DATA>
     }
 }
 
-
-
 public class FastWorldData<SETTINGS, DATA> : WorldData<SETTINGS, FastArray3d<DATA>, DATA> where SETTINGS : IWorldSettings, new() {
 
     private static FastArray3d<DATA> Initer() => new(settings.ChunkBitSize);
 
     protected FastWorldData() : base(Initer) { }
     public FastWorldData(Func<int, int, DATA> filler) : base(Initer, filler) { }
-    public FastWorldData(Func<Vector3T<int>, DATA> filler) : base(Initer, filler) { }
+    public FastWorldData(Func<Ivec3, DATA> filler) : base(Initer, filler) { }
     public static FastWorldData<SETTINGS, DATA> UnsafeNew() => new();
 
 }
@@ -115,7 +129,7 @@ public class WorldBoolData<SETTINGS> : WorldData<SETTINGS, BoolArray3d, bool> wh
 
     protected WorldBoolData() : base(Initer) { }
     public WorldBoolData(Func<int, int, bool> filler) : base(Initer, filler) { }
-    public WorldBoolData(Func<Vector3T<int>, bool> filler) : base(Initer, filler) { }
+    public WorldBoolData(Func<Ivec3, bool> filler) : base(Initer, filler) { }
     public static WorldBoolData<SETTINGS> UnsafeNew() => new();
 
 }

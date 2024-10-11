@@ -7,11 +7,11 @@ public class FastArray3d<OBJ> : IArray3d<OBJ> {
     protected readonly OBJ[] data;
 
     public Vector3T<int> Size { get; }
-    public readonly Vector3T<byte> BitSize;
+    public readonly Vector3T<int> BitSize;
     protected readonly int BitSizeXY;
     protected readonly Vector3T<int> Masks = new();
 
-    public FastArray3d(Vector3T<byte> bsize) {
+    public FastArray3d(Vector3T<int> bsize) {
         BitSize = bsize;
         BitSizeXY = bsize.X + bsize.Y;
         Masks = Size - 1;
@@ -21,7 +21,7 @@ public class FastArray3d<OBJ> : IArray3d<OBJ> {
         data = new OBJ[Size.Product()];
     }
 
-    public FastArray3d(Vector3T<byte> bsize, int wind, Func<int, int, OBJ> filler) : this(bsize) {
+    public FastArray3d(Vector3T<int> bsize, int wind, Func<int, int, OBJ> filler) : this(bsize) {
         for (int cind = 0; cind < Size.Product(); cind++) {
             this[cind] = filler(wind, cind);
         }
@@ -30,7 +30,7 @@ public class FastArray3d<OBJ> : IArray3d<OBJ> {
     public int GetIndexFromXyz(Vector3T<int> xyz) => xyz.X | (xyz.Y << BitSize.X) | (xyz.Z << BitSizeXY);
 
     public Vector3T<int> GetXyzFromIndex(int it) {
-        var rtn = Masks.Do((m) => it & m);
+        var rtn = Masks.And(it);
         rtn.Y >>>= BitSize.X;
         rtn.Z >>>= BitSizeXY;
         return rtn;
@@ -46,4 +46,8 @@ public class FastArray3d<OBJ> : IArray3d<OBJ> {
         get => data[i];
         set => data[i] = value;
     }
+}
+
+public static class FastArray3d {
+    public static int GetIndexFromXyz(Vector3T<int> xyz, int bitsizex, int bitsizexy) => xyz.X | (xyz.Y << bitsizex) | (xyz.Z << bitsizexy);
 }

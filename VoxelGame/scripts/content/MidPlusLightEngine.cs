@@ -101,12 +101,11 @@ public class MidPlusLightEngine {
         for (int it1 = 1; it1 <= bound1; it1++) { //start at 1 to skip source
             Ivec3 vit1 = v1 * it1;
             for (int it2 = Math.Min(bound2, it1); 0 <= it2; it2--) {// start from the end to handle neigbors replacement easily
-                Ivec3 vit2 = v2 * it2;
+                Ivec3 vit2 = v2 * it2 + vit1;
                 for (int it3 = Math.Min(bound3, it2); 0 <= it3; it3--) { //same than it2
-                    Ivec3 sdist = vit1 + vit2 + (v3 * it3); //signed distance
+                    Ivec3 sdist = v3 * it3 + vit2; //signed distance
                     Ivec3 xyz = source + sdist; //world position
-                    //dont mind this, its some optimization shenanigans for my chunk system cuz its bad, tldr xyz=(wind,cind)
-                    currentmap.DeconstructPosToIndex(xyz, out int wind, out int cind);
+                    (int wind, int cind) = WorldDataVec3.StaticDeconstructPosToIndex(xyz);
 
                     if (world.Occupancy[wind, cind]) { continue; }
                     //biases (going from 6nbs to 26 require to adjust them, as the visibility cone is different)
@@ -123,7 +122,6 @@ public class MidPlusLightEngine {
 
                     if (visi == 0) { continue; }
                     // end visibility computation, light effects start here
-
                     //reduce the values at the edge to compensate for them being done again by other cones
                     float edgecoef = 1f;
                     if (b1 == 0) { edgecoef *= 0.5f; }
@@ -177,12 +175,12 @@ public class MidPlusLightEngine {
 
         currentmap[new(+02, +02, -9)] = RandomColor() * 680;
         currentmap[new(+11, +62, 10)] = RandomColor() * 330;
-        currentmap[new(+73, -12, 13)] = RandomColor() * 500;
-        currentmap[new(-50, -38, -3)] = RandomColor() * 300;
+        currentmap[new(+73, +12, 13)] = RandomColor() * 500;
+        currentmap[new(-50, -18, -3)] = RandomColor() * 300;
         world.Occupancy[new(+02, +02, -9)] = true;
         world.Occupancy[new(+11, +62, 10)] = true;
-        world.Occupancy[new(+73, -12, 13)] = true;
-        world.Occupancy[new(-50, -38, -3)] = true;
+        world.Occupancy[new(+73, +12, 13)] = true;
+        world.Occupancy[new(-50, -18, -3)] = true;
 
         GD.Print("starting the light computation");
         while (true) {
