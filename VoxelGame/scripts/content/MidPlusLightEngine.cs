@@ -42,7 +42,6 @@ public class MidPlusLightEngine {
 
 
     public void AsyncComputeVisibilityMap(Ivec3 source, Vec3 emit) {
-        WorldDataFloat vmap = WorldDataFloat.UnsafeNew();
 
         var adjs = world.Adjacency[source];
         Ivec3 filter = new(0) {
@@ -50,8 +49,9 @@ public class MidPlusLightEngine {
             Y = adjs.Get(1) - adjs.Get(4),
             Z = adjs.Get(2) - adjs.Get(5)
         };
+        if (world.Occupancy[source]) { filter = new(0); }
 
-        //List<long> ids = new(48);
+        List<long> ids = new(48);
         foreach (Ivec3[] combo in combos) {
             foreach (int s1 in signs) {
                 foreach (int s2 in signs) {
@@ -59,62 +59,73 @@ public class MidPlusLightEngine {
                         Ivec3 v1 = combo[0] * s1;
                         Ivec3 v2 = combo[1] * s2;
                         Ivec3 v3 = combo[2] * s3;
-                        IterateInCone(vmap, source, emit, filter, v1, v2, v3);
-                        //long id = WorkerThreadPool.AddTask(Callable.From(() => IterateInCone(vmap, source, emit, filter, v1, v2, v3)));
-                        //ids.Add(id);
+                        //IterateInCone(source, emit, filter, v1, v2, v3);
+                        long id = WorkerThreadPool.AddTask(Callable.From(() => IterateInCone(source, emit, filter, v1, v2, v3)));
+                        ids.Add(id);
                     }
                 }
             }
         }
-        /*GD.Print($"waiting on {ids.Count} cones");
+        //GD.Print($"waiting on {ids.Count} cones");
         foreach (var id in ids) {
             WorkerThreadPool.WaitForTaskCompletion(id);
-        }*/
+        }
         //return vmap;
     }
 
-    public void IterateInCone(WorldDataFloat vmap, Ivec3 source, Vec3 emit, Ivec3 filter, Ivec3 v1, Ivec3 v2, Ivec3 v3) {
-        vmap[source] = 1;
+    // v1,v2,v3 are (1,0,0),(0,1,0),(0,0,1) in any order possible (or negative)
+    public void IterateInCone(Ivec3 source, Vec3 emit, Ivec3 filter, Ivec3 v1, Ivec3 v2, Ivec3 v3) {
+        Ivec3 mins = settings.TotalMins - source; //world negative bound (included)
+        Ivec3 maxs = settings.TotalMaxs - source; //world positive bound (included)
 
-        Ivec3 mins = settings.TotalMins - source;
-        Ivec3 maxs = settings.TotalMaxs - source;
+        //select mins or max based on if vn is positive or negative, then pick the one corresponding to the right axis
+        int bound1 = ((v1 <= 0) ? -mins : maxs).Pick(v1);
+        int bound2 = ((v2 <= 0) ? -mins : maxs).Pick(v2);
+        int bound3 = ((v3 <= 0) ? -mins : maxs).Pick(v3);
 
-        int bound1 = v1.Do(mins, maxs, (v, min, max) => (v < 0) ? -min : max).Pick(v1);
-        int bound2 = v2.Do(mins, maxs, (v, min, max) => (v < 0) ? -min : max).Pick(v2);
-        int bound3 = v3.Do(mins, maxs, (v, min, max) => (v < 0) ? -min : max).Pick(v3);
+        //store the visibility values
+        float[,] vbuffer = new float[Math.Min(bound1, bound2) + 1, Math.Min(bound1, bound3) + 1];
+        vbuffer[0, 0] = 1; //the source
 
         for (int it1 = 1; it1 <= bound1; it1++) { //start at 1 to skip source
             Ivec3 vit1 = v1 * it1;
-            for (int it2 = 0; it2 <= bound2 && it2 <= it1; it2++) {
+            for (int it2 = Math.Min(bound2, it1); 0 <= it2; it2--) {// start from the end to handle neigbors replacement easily
                 Ivec3 vit2 = v2 * it2;
-                for (int it3 = 0; it3 <= bound3 && it3 <= it2; it3++) {
-                    Ivec3 sdist = vit1 + vit2 + (v3 * it3);
-                    Ivec3 xyz = source + sdist;
-                    currentmap.DeconstructPosToIndex(xyz, out var wind, out var cind);
+                for (int it3 = Math.Min(bound3, it2); 0 <= it3; it3--) { //same than it2
+                    Ivec3 sdist = vit1 + vit2 + (v3 * it3); //signed distance
+                    Ivec3 xyz = source + sdist; //world position
+                    //dont mind this, its some optimization shenanigans for my chunk system cuz its bad, tldr xyz=(wind,cind)
+                    currentmap.DeconstructPosToIndex(xyz, out int wind, out int cind);
 
                     if (world.Occupancy[wind, cind]) { continue; }
-                    //biases
-                    var b3 = it3;
-                    var b2 = it2 - it3;
-                    var b1 = it1 - Math.Max(it2, it3);
+                    //biases (going from 6nbs to 26 require to adjust them, as the visibility cone is different)
+                    int b3 = it3;
+                    int b2 = it2 - it3;
+                    int b1 = it1 - it2;
 
                     //neigbors
-                    var nb1 = vmap[xyz - v1] * b1;
-                    var nb2 = (it2 == 0) ? 0 : vmap[xyz - v1 - v2] * b2;
-                    var nb3 = (it3 == 0) ? 0 : vmap[xyz - v1 - v2 - v3] * b3;
-
-                    var visi = (nb1 + nb2 + nb3) / (b1 + b2 + b3);
-                    vmap[wind, cind] = visi;
+                    float nb1 = (b1 == 0) ? 0 : vbuffer[it2, it3] * b1;
+                    float nb2 = (b2 == 0) ? 0 : vbuffer[it2 - 1, it3] * b2;
+                    float nb3 = (b3 == 0) ? 0 : vbuffer[it2 - 1, it3 - 1] * b3;
+                    float visi = (nb1 + nb2 + nb3) / (b1 + b2 + b3);
+                    vbuffer[it2, it3] = visi; //replace the nb1 neigbor (as it wont be used anymore)
 
                     if (visi == 0) { continue; }
-                    
-                    //get light value from visibility
-                    var adjs = world.Adjacency[wind, cind]; //TODO also do source (filter) lambert
-                    if (adjs.IsEmpty()) { continue; }
-                    var bestlambert = GetBestLambert(adjs, sdist, filter);
+                    // end visibility computation, light effects start here
 
-                    var lcol = visi * emit * 1.0f * bestlambert / (sdist.Square().Sum() + 1);
-                    currentmap[wind, cind] += lcol;
+                    //reduce the values at the edge to compensate for them being done again by other cones
+                    float edgecoef = 1f;
+                    if (b1 == 0) { edgecoef *= 0.5f; }
+                    if (b2 == 0) { edgecoef *= 0.5f; }
+                    if (b3 == 0) { edgecoef *= 0.5f; }
+                    if (b2 == 0 && b3 == 0) { edgecoef *= 0.5f; }
+
+                    //get light exposure value and add it to the world
+                    var adjs = world.Adjacency[wind, cind];
+                    if (adjs.IsEmpty()) { continue; }
+                    float bestlambert = GetBestLambert(adjs, sdist, filter);
+
+                    currentmap[wind, cind] += visi * emit * bestlambert / (sdist.Square().Sum() + 1) * edgecoef;
                 }
             }
         }
@@ -129,7 +140,7 @@ public class MidPlusLightEngine {
         var l6 = adjs[5] ? GetLambert(dist, new(0, 0, -1), filter) : 0;
         //float avglambert = (l1 + l2 + l3 + l4 + l5 + l6) / adjs.Sum(); //TODO remove adjs that arent facing the ray
         float bestlambert = Mathf.Max(Mathf.Max(Mathf.Max(l1, l2), Mathf.Max(l3, l4)), Mathf.Max(l5, l6));
-        return 1;
+        return bestlambert;
     }
 
 
@@ -164,12 +175,15 @@ public class MidPlusLightEngine {
 
         GD.Print("starting the light computation");
         while (true) {
-            GD.Print("finding next source");
-            if (GetNextTopSource(out var nextsource, out var nextemit)) {
+            GD.Print("finding next sources");
+            List<UpdateRequest> requests = GetNextTopSource();
+            if (requests.Count == 0) {
                 break;
             }
-            GD.Print("computing lightmap");
-            AsyncComputeVisibilityMap(nextsource, nextemit);
+            foreach (var request in requests) {
+                GD.Print("computing lighting from a source");
+                AsyncComputeVisibilityMap(request.Source, request.Emit);
+            }
 
             if (!Enabled) { return; }
             GD.Print("preparing layers update");
@@ -184,10 +198,9 @@ public class MidPlusLightEngine {
         WorkerThreadPool.WaitForTaskCompletion(mainWorkerId);
     }
 
-    public bool GetNextTopSource(out Ivec3 nsource, out Vec3 emit) {
+    public List<UpdateRequest> GetNextTopSource() {
         float[] top = new float[] { 0.15f };
-        Ivec3[] nextsource = new Ivec3[] { new() };
-
+        List<UpdateRequest> norders = new();
         updatemap.ForAll((xyz) => {
             world.Voxels.DeconstructPosToIndex(xyz, out var wind, out var cind);
             var emit = currentmap[wind, cind] - updatemap[wind, cind];
@@ -207,17 +220,24 @@ public class MidPlusLightEngine {
             }
 
             float emax = emit.Max();
-            if (top[0] <= emax) {
-                top[0] = Math.Max(top[0], emax);
-                nextsource[0] = xyz;
+            if (top[0] * 0.5 <= emax) {
+                if (top[0] <= emax) {
+                    top[0] = Math.Max(top[0], emax);
+                }
+                updatemap[wind, cind] = currentmap[wind, cind];
+                norders.Add(new(xyz, emit));
             }
         });
-        GD.Print($"next source emax={top[0]}");
-        nsource = nextsource[0];
-        emit = currentmap[nsource] - updatemap[nsource];
-        updatemap[nsource] = currentmap[nsource];
-        return top[0] < 0.1f;
+        norders = norders.OrderBy((o) => -o.Emit.Max()).Take(4).ToList();
+        //GD.Print($"next source emax={top[0]}");
+        //nsource = nextsource[0];
+        //emit = currentmap[nsource] - updatemap[nsource];
+        //updatemap[nsource] = currentmap[nsource];
+        //return top[0] < 0.1f;
+        return norders;
     }
+
+    public record class UpdateRequest(Ivec3 Source, Vec3 Emit);
 
     public static Vec3 RandomColor() => new(GD.Randf(), GD.Randf(), GD.Randf());
 }
