@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using voxelgame.scripts;
 using VoxelGame.scripts.common;
@@ -51,7 +52,9 @@ public class MidPlusLightEngine {
         };
         if (world.Occupancy[source]) { filter = new(0); }
 
-        List<long> ids = new(48);
+        //List<long> ids = new(48);
+
+        using CountdownEvent cdevent = new(48);
         foreach (Ivec3[] combo in combos) {
             foreach (int s1 in signs) {
                 foreach (int s2 in signs) {
@@ -59,17 +62,25 @@ public class MidPlusLightEngine {
                         Ivec3 v1 = combo[0] * s1;
                         Ivec3 v2 = combo[1] * s2;
                         Ivec3 v3 = combo[2] * s3;
+                        ThreadPool.QueueUserWorkItem(delegate {
+                            IterateInCone(source, emit, filter, v1, v2, v3);
+                            cdevent.Signal();
+                        });
+
                         //IterateInCone(source, emit, filter, v1, v2, v3);
-                        long id = WorkerThreadPool.AddTask(Callable.From(() => IterateInCone(source, emit, filter, v1, v2, v3)));
-                        ids.Add(id);
+                        //long id = WorkerThreadPool.AddTask(Callable.From(() => IterateInCone(source, emit, filter, v1, v2, v3)));
+                        //ids.Add(id);
                     }
                 }
             }
         }
+        cdevent.Wait();
+
+
         //GD.Print($"waiting on {ids.Count} cones");
-        foreach (var id in ids) {
-            WorkerThreadPool.WaitForTaskCompletion(id);
-        }
+        //foreach (var id in ids) {
+        //    WorkerThreadPool.WaitForTaskCompletion(id);
+        //}
         //return vmap;
     }
 
@@ -177,9 +188,7 @@ public class MidPlusLightEngine {
         while (true) {
             GD.Print("finding next sources");
             List<UpdateRequest> requests = GetNextTopSource();
-            if (requests.Count == 0) {
-                break;
-            }
+            if (requests.Count == 0) { break; }
             foreach (var request in requests) {
                 GD.Print("computing lighting from a source");
                 AsyncComputeVisibilityMap(request.Source, request.Emit);
@@ -201,8 +210,8 @@ public class MidPlusLightEngine {
     public List<UpdateRequest> GetNextTopSource() {
         float[] top = new float[] { 0.15f };
         List<UpdateRequest> norders = new();
-        updatemap.ForAll((xyz) => {
-            world.Voxels.DeconstructPosToIndex(xyz, out var wind, out var cind);
+        currentmap.ForAll((xyz) => {
+            currentmap.DeconstructPosToIndex(xyz, out var wind, out var cind);
             var emit = currentmap[wind, cind] - updatemap[wind, cind];
             if (emit == 0) { return; }
 
@@ -228,13 +237,7 @@ public class MidPlusLightEngine {
                 norders.Add(new(xyz, emit));
             }
         });
-        norders = norders.OrderBy((o) => -o.Emit.Max()).Take(4).ToList();
-        //GD.Print($"next source emax={top[0]}");
-        //nsource = nextsource[0];
-        //emit = currentmap[nsource] - updatemap[nsource];
-        //updatemap[nsource] = currentmap[nsource];
-        //return top[0] < 0.1f;
-        return norders;
+        return norders.OrderBy((o) => -o.Emit.Max()).Take(4).ToList();
     }
 
     public record class UpdateRequest(Ivec3 Source, Vec3 Emit);
