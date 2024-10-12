@@ -105,9 +105,12 @@ public class MidPlusLightEngine {
                 for (int it3 = Math.Min(bound3, it2); 0 <= it3; it3--) { //same than it2
                     Ivec3 sdist = v3 * it3 + vit2; //signed distance
                     Ivec3 xyz = source + sdist; //world position
-                    (int wind, int cind) = WorldDataVec3.StaticDeconstructPosToIndex(xyz);
+                    (int wind, int cind) = WorldDataVec3.StaticDeconstructPosToIndex(xyz); //optimization shenanigans,tldr wind,cind is xyz
 
-                    if (world.Occupancy[wind, cind]) { continue; }
+                    if (world.Occupancy[wind, cind]) {
+                        vbuffer[it2, it3] = 0;
+                        continue;
+                    }
                     //biases (going from 6nbs to 26 require to adjust them, as the visibility cone is different)
                     int b3 = it3;
                     int b2 = it2 - it3;
@@ -133,7 +136,6 @@ public class MidPlusLightEngine {
                     var adjs = world.Adjacency[wind, cind];
                     if (adjs.IsEmpty()) { continue; }
                     float bestlambert = GetBestLambert(adjs, sdist, filter);
-
                     currentmap[wind, cind] += visi * emit * bestlambert / (sdist.Square().Sum() + 1) * edgecoef;
                 }
             }

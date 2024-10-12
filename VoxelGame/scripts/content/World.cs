@@ -8,14 +8,14 @@ namespace VoxelGame.scripts.content;
 public class World {
     private static readonly WorldSettings1 settings = new();
 
-    public readonly FastWorldData<WorldSettings1, Voxel> Voxels;
-    public readonly WorldBoolData<WorldSettings1> Occupancy;
-    public readonly FastWorldData<WorldSettings1, Bool8Pack> Adjacency;
+    public readonly FastSparseWorldData<WorldSettings1, Voxel> Voxels;
+    public readonly SparseWorldBoolData<WorldSettings1> Occupancy;
+    public readonly FastSparseWorldData<WorldSettings1, Bool8Pack> Adjacency;
 
     protected World() {
-        Voxels = new((wind, cind) => new());
-        Occupancy = new((wind, cind) => new());
-        Adjacency = new((wind, cind) => new());
+        Voxels = new();
+        Occupancy = new();
+        Adjacency = new();
     }
 
     public static World Generate(WorldGenerator1 generator) {
@@ -41,7 +41,12 @@ public class World {
             bool a3 = (xyz.X != totalMin.X) && Occupancy[xyz - (1, 0, 0)];
             bool a4 = (xyz.Y != totalMin.Y) && Occupancy[xyz - (0, 1, 0)];
             bool a5 = (xyz.Z != totalMin.Z) && Occupancy[xyz - (0, 0, 1)];
-            Adjacency[xyz].Set(a0, a1, a2, a3, a4, a5);
+            if (a0 || a1 || a2 || a3 || a4 || a5) {
+                if (Adjacency.IsSparse(xyz)) {
+                    Adjacency[xyz] = new();
+                }
+                Adjacency[xyz].Set(a0, a1, a2, a3, a4, a5);
+            }
         });
     }
 
@@ -75,7 +80,8 @@ public class World {
                 for (int ity = 0; ity < gridSize.Y; ity++) {
                     var xyz = settings.GridMins + (itx, ity, itz);
 
-                    ulong occupancy = Occupancy.Chunks[xyz].Data;
+                    var chunk = Occupancy.Chunks[xyz];
+                    ulong occupancy = chunk == null ? 0UL : chunk.Data;
 
                     layer.SetPixel(itx, ity, new() {
                         R = BitConverter.UInt32BitsToSingle((uint)occupancy),
@@ -112,7 +118,12 @@ public class World {
                     var xyz = settings.TotalMins + (itx, ity, itz);
 
                     Color data = layer.GetPixel(itx, ity);
-                    world.Voxels[xyz].color = new(data.R, data.G, data.B);
+                    if (data.R != 0 || data.G != 0 || data.B != 0) {
+                        if (world.Voxels.IsSparse(xyz)) {
+                            world.Voxels[xyz] = new();
+                        }
+                        world.Voxels[xyz].color = new(data.R, data.G, data.B);
+                    }
                 }
             }
         }
@@ -126,8 +137,12 @@ public class World {
                     Color data = layer.GetPixel(itx, ity);
                     ulong data1 = BitConverter.SingleToUInt32Bits(data.R);
                     ulong data2 = ((ulong)BitConverter.SingleToUInt32Bits(data.G)) << 32;
-
-                    world.Occupancy.Chunks[xyz].Data = data1 | data2;
+                    ulong wdata = data1 | data2;
+                    if (wdata != 0) {
+                        var chunk = world.Occupancy.Chunks[xyz];
+                        if (chunk == null) { world.Occupancy.Chunks[xyz] = chunk = new(); }
+                        chunk.Data = wdata;
+                    }
                 }
             }
         }

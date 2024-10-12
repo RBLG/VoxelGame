@@ -86,7 +86,8 @@ public partial class VoxelEngine : MeshInstance3D {
                 for (int ity = 0; ity < gsize.Y; ity++) {
                     var xyz = mins + (itx, ity, itz);
 
-                    ulong occupancy = world.Occupancy.Chunks[xyz].Data;
+                    var chunk = world.Occupancy.Chunks[xyz];
+                    ulong occupancy = chunk == null ? 0UL : chunk.Data;
 
                     uint data1 = (uint)occupancy;
                     uint data2 = (uint)(occupancy >> 32);
