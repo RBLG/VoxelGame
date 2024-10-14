@@ -100,6 +100,7 @@ public class MidPlusLightEngine {
 
         for (int it1 = 1; it1 <= bound1; it1++) { //start at 1 to skip source
             Ivec3 vit1 = v1 * it1;
+            float it1inv = 1f / it1;
             for (int it2 = Math.Min(bound2, it1); 0 <= it2; it2--) {// start from the end to handle neigbors replacement easily
                 Ivec3 vit2 = v2 * it2 + vit1;
                 for (int it3 = Math.Min(bound3, it2); 0 <= it3; it3--) { //same than it2
@@ -112,15 +113,16 @@ public class MidPlusLightEngine {
                         continue;
                     }
                     //biases (going from 6nbs to 26 require to adjust them, as the visibility cone is different)
-                    int b3 = it3;
-                    int b2 = it2 - it3;
                     int b1 = it1 - it2;
+                    int b2 = it2 - it3;
+                    int b3 = it3;
+                    // b1+b2+b3=it1
 
                     //neigbors
-                    float nb1 = (b1 == 0) ? 0 : vbuffer[it2, it3] * b1;
-                    float nb2 = (b2 == 0) ? 0 : vbuffer[it2 - 1, it3] * b2;
-                    float nb3 = (b3 == 0) ? 0 : vbuffer[it2 - 1, it3 - 1] * b3;
-                    float visi = (nb1 + nb2 + nb3) / (b1 + b2 + b3);
+                    float nb1 = (b1 == 0) ? 0 : (vbuffer[it2, it3] * b1);
+                    float nb2 = (b2 == 0) ? 0 : (vbuffer[it2 - 1, it3] * b2);
+                    float nb3 = (b3 == 0) ? 0 : (vbuffer[it2 - 1, it3 - 1] * b3);
+                    float visi = (nb1 + nb2 + nb3) * it1inv;
                     vbuffer[it2, it3] = visi; //replace the nb1 neigbor (as it wont be used anymore)
 
                     if (visi == 0) { continue; }
