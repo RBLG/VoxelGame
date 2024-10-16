@@ -112,16 +112,18 @@ public class MidPlusLightEngine {
                         vbuffer[it2, it3] = 0;
                         continue;
                     }
-                    //biases (going from 6nbs to 26 require to adjust them, as the visibility cone is different)
+                    //weights
                     int b1 = it1 - it2;
                     int b2 = it2 - it3;
                     int b3 = it3;
                     // b1+b2+b3=it1
 
-                    //neigbors
+                    //neigbors * their weights
                     float nb1 = (b1 == 0) ? 0 : (vbuffer[it2, it3] * b1);
                     float nb2 = (b2 == 0) ? 0 : (vbuffer[it2 - 1, it3] * b2);
                     float nb3 = (b3 == 0) ? 0 : (vbuffer[it2 - 1, it3 - 1] * b3);
+
+                    //interpolating. it1inv is 1/(b1+b2+b3)
                     float visi = (nb1 + nb2 + nb3) * it1inv;
                     vbuffer[it2, it3] = visi; //replace the nb1 neigbor (as it wont be used anymore)
 
