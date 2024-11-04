@@ -1,22 +1,18 @@
 ﻿using Godot;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using voxelgame.scripts;
 using VoxelGame.scripts.common;
 
 namespace VoxelGame.scripts.content;
 
+using Float = System.Single;
 using Ivec3 = Vector3T<int>;
 using Vec3 = Vector3T<float>;
 using WorldDataVec3 = FastWorldData<WorldSettings1, Vector3T<float>>;
-using WorldDataFloat = FastWorldData<WorldSettings1, float>;
-using static System.Formats.Asn1.AsnWriter;
 
 public class MidPlusLightEngine {
     private static readonly int[] SIGNS = new int[] { 1, -1 };
@@ -103,9 +99,11 @@ public class MidPlusLightEngine {
 
         //store the visibility values
         float[,] vbuffer = new float[Math.Min(bound1, bound2) + 1 + 1, Math.Min(bound1, bound3) + 1 + 1];
-        vbuffer[0, 0] = 1; //the source
+        vbuffer[0, 0] = 1; // the source (1,0,0) neigbor
+        vbuffer[1, 0] = 1; // the (1,1,0) neigbor
+        vbuffer[1, 1] = 1; // the (1,1,1) neigbor
 
-        for (int it1 = 0; it1 <= bound1; it1++) { //start at 1 to skip source
+        for (int it1 = 1; it1 <= bound1; it1++) { //start at 1 to skip source
             Ivec3 vit1 = cone.axis1 * it1;
             float it1inv = 1f / (it1 + 1);
             bool planevisi = false;
@@ -117,15 +115,18 @@ public class MidPlusLightEngine {
                     (int wind, int cind) = WorldDataVec3.StaticDeconstructPosToIndex(xyz); //optimization shenanigans,tldr wind,cind is xyz
 
                     float visi = vbuffer[it2, it3];
-                    if (visi == 0) {
+                    if (visi == 0) { continue; }
+
+                    if (world.Occupancy[wind, cind]) {
                         vbuffer[it2, it3] = 0;
                         continue;
                     }
                     planevisi = true;
 
-                    if (world.Occupancy[wind, cind] && it1 != 0) {
-                        vbuffer[it2, it3] = 0;
-                        continue;
+                    //avoid duplicated edges and avoid redoing the source
+                    if ((it1 == it2 && cone.edge1) || (it2 == it3 && cone.edge2) || (it2 == 0 && cone.qedge2) || (it3 == 0 && cone.qedge3)) {
+                    } else {
+                        ApplyVisibility(wind, cind, visi, emit, sdist, filter);
                     }
 
                     //weights
@@ -133,54 +134,47 @@ public class MidPlusLightEngine {
                     int w2 = it2 + 1 - it3;
                     int w3 = it3 + 1;
 
-                    vbuffer[it2, it3] = visi * w1 * it1inv;
-                    vbuffer[it2 + 1, it3] += visi * w2 * it1inv;
-                    vbuffer[it2 + 1, it3 + 1] += visi * w3 * it1inv;
-
-
-                    // end visibility computation, light effects start here
-
-                    if (it1 == 0) { continue; }
-
-                    //avoid duplicated edges
-                    if ((it1 == it2 && cone.edge1) || (it2 == it3 && cone.edge2) || (it2 == 0 && cone.qedge2) || (it3 == 0 && cone.qedge3)) {
-                        continue;
-                    }
-
-                    //get light exposure value and add it to the world
-                    //var adjs = world.Adjacency[wind, cind];
-                    //if (adjs.IsEmpty()) { continue; }
-                    float bestlambert = 1;// GetBestLambert(adjs, sdist, filter);
-                    currentmap[wind, cind] += visi * emit * bestlambert / (sdist.Square().Sum() + 1);
+                    visi *= it1inv;
+                    //apply to next neigbors
+                    vbuffer[it2, it3] = visi * w1;
+                    vbuffer[it2 + 1, it3] += visi * w2;
+                    vbuffer[it2 + 1, it3 + 1] += visi * w3;
                 }
             }
             if (!planevisi) { break; }
         }
     }
 
+    public static int XyToIndex(int x, int y, int height) => x * height + y;
+
+    public void ApplyVisibility(int wind, int cind, float visi, Vec3 emit, Ivec3 sdist, Ivec3 filter) {
+        //var adjs = world.Adjacency[wind, cind];
+        //if (adjs.IsEmpty()) { return; }
+        float bestlambert = 1;// GetBestLambert(adjs, sdist, filter);
+        currentmap[wind, cind] += visi * emit * bestlambert / (sdist.Square().Sum() + 1);
+    }
+
     public static float GetBestLambert(Bool8Pack adjs, Ivec3 dist, Ivec3 filter) {
-        var l1 = adjs[0] ? GetLambert(dist, new(1, 0, 0), filter) : 0;
-        var l2 = adjs[1] ? GetLambert(dist, new(0, 1, 0), filter) : 0;
-        var l3 = adjs[2] ? GetLambert(dist, new(0, 0, 1), filter) : 0;
-        var l4 = adjs[3] ? GetLambert(dist, new(-1, 0, 0), filter) : 0;
-        var l5 = adjs[4] ? GetLambert(dist, new(0, -1, 0), filter) : 0;
-        var l6 = adjs[5] ? GetLambert(dist, new(0, 0, -1), filter) : 0;
+        var fdist = dist.ToFloat();
+        var l1 = adjs[0] ? GetLambert(fdist, new(1, 0, 0), filter) : 0;
+        var l2 = adjs[1] ? GetLambert(fdist, new(0, 1, 0), filter) : 0;
+        var l3 = adjs[2] ? GetLambert(fdist, new(0, 0, 1), filter) : 0;
+        var l4 = adjs[3] ? GetLambert(fdist, new(-1, 0, 0), filter) : 0;
+        var l5 = adjs[4] ? GetLambert(fdist, new(0, -1, 0), filter) : 0;
+        var l6 = adjs[5] ? GetLambert(fdist, new(0, 0, -1), filter) : 0;
         //float avglambert = (l1 + l2 + l3 + l4 + l5 + l6) / adjs.Sum(); //TODO remove adjs that arent facing the ray
         float bestlambert = Mathf.Max(Mathf.Max(Mathf.Max(l1, l2), Mathf.Max(l3, l4)), Mathf.Max(l5, l6));
         return bestlambert;
     }
 
 
-    public static float GetLambert(Ivec3 tdist, Ivec3 tnormal, Ivec3 tfilter) {
-        if (tfilter == tnormal) { return 0; }
-        tdist += tnormal;
-
-        Vector3 normal = tnormal.ToVector3();
-        Vector3 dist = tdist.ToVector3();
-        dist = dist.Normalized();
+    public static float GetLambert(Vec3 sdist, Ivec3 normal, Ivec3 filter) {
+        if (filter == normal) { return 0; }
+        sdist += normal.ToFloat();
+        sdist = sdist.Normalized();
 
         //Ax* Bx +Ay * By + Az * Bz
-        var mult = dist * normal;
+        var mult = sdist * normal.ToFloat();
         return Mathf.Max(mult.X + mult.Y + mult.Z, 0);
     }
 
@@ -191,10 +185,10 @@ public class MidPlusLightEngine {
     public void ComputeLighting() {
         if (!Enabled) { return; }
 
-        currentmap[new(+02, +02, -9)] = RandomColor() * 680;
-        currentmap[new(+11, +62, 10)] = RandomColor() * 330;
-        currentmap[new(+73, +12, 13)] = RandomColor() * 500;
-        currentmap[new(-50, -18, -3)] = RandomColor() * 300;
+        currentmap[new(+02, +02, -9)] = new(320, 691, 400);
+        currentmap[new(+11, +62, 10)] = new(320, 100, 31);
+        currentmap[new(+73, +12, 13)] = new(400, 400, 400);
+        currentmap[new(-50, -18, -3)] = new(100, 200, 200);
         world.Occupancy[new(+02, +02, -9)] = true;
         world.Occupancy[new(+11, +62, 10)] = true;
         world.Occupancy[new(+73, +12, 13)] = true;
@@ -264,8 +258,6 @@ public class MidPlusLightEngine {
     }
 
     public record class UpdateRequest(Ivec3 Source, Vec3 Emit);
-
-    public static Vec3 RandomColor() => new(GD.Randf(), GD.Randf(), GD.Randf());
 }
 
 

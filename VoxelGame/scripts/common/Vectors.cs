@@ -137,6 +137,16 @@ public struct Vector3T<TYPE> where TYPE : INumber<TYPE> {
     public override readonly string ToString() => $"Vec3<{typeof(TYPE).Name}>({X},{Y},{Z})";
     public readonly string ToShortString() => $"({X},{Y},{Z})";
 
+    public readonly Vector3T<TYPE> Normalized() {
+        if (X == TYPE.Zero && Y == TYPE.Zero && Z == TYPE.Zero) {
+            return this;
+        }
+        dynamic lenInv = 1 / Length;
+        TYPE x = (TYPE)(X * lenInv);
+        TYPE y = (TYPE)(Y * lenInv);
+        TYPE z = (TYPE)(Z * lenInv);
+        return new(x, y, z);
+    }
 }
 
 public static class GMath {
@@ -160,6 +170,9 @@ public static class GMath {
 
     public static Vector3T<uint> ToUint(this Vector3T<int> vec) => vec.Do((v) => (uint)v);
     public static Vector3T<int> ToInt(this Vector3T<uint> vec) => new((int)vec.X, (int)vec.Y, (int)vec.Z);
+    public static Vector3T<int> ToInt(this Vector3T<float> vec) => new((int)vec.X, (int)vec.Y, (int)vec.Z);
+    public static Vector3T<float> ToFloat(this Vector3T<int> vec) => new(vec.X, vec.Y, vec.Z);
+    public static Vector3T<Half> ToHalf(this Vector3T<int> vec) => new((Half)vec.X, (Half)vec.Y, (Half)vec.Z);
     public static Vector3T<TYPE> Not<TYPE>(this Vector3T<TYPE> vec) where TYPE : IBinaryNumber<TYPE> => new(~vec.X, ~vec.Y, ~vec.Z);
     public static Vector3T<TYPE> And<TYPE>(this Vector3T<TYPE> vec, Vector3T<TYPE> mask) where TYPE : IBinaryNumber<TYPE>
         => new(vec.X & mask.X, vec.Y & mask.Y, vec.Z & mask.Z);
@@ -181,4 +194,12 @@ public static class GMath {
         => new(vec.X << shift.X, vec.Y << shift.Y, vec.Z << shift.Z);
     public static Vector3T<TYPE> LeftShift<TYPE>(this Vector3T<TYPE> vec, int shift) where TYPE : INumber<TYPE>, IShiftOperators<TYPE, int, TYPE>
         => new(vec.X << shift, vec.Y << shift, vec.Z << shift);
+
+    public static Vector3T<float> Normalized2(this Vector3T<float> vec) {
+        if (vec.X == 0 && vec.Y == 0 && vec.Z == 0) {
+            return vec;
+        }
+        float lenInv = 1 / (float)vec.Length;
+        return vec * lenInv;
+    }
 }
