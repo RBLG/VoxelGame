@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -15,14 +16,44 @@ using Ivec3 = Vector3T<int>;
 using Vec3 = Vector3T<float>;
 using WorldDataVec3 = FastWorldData<WorldSettings1, Vector3T<float>>;
 using WorldDataFloat = FastWorldData<WorldSettings1, float>;
+using static System.Formats.Asn1.AsnWriter;
+
 public class MidPlusLightEngine {
-    private static readonly int[] signs = new int[] { 1, -1 };
-    private static readonly Ivec3[] axises = new Ivec3[] { new(1, 0, 0), new(0, 1, 0), new(0, 0, 1) };
-    private static readonly Ivec3[][] combos = new Ivec3[][] {
-        new Ivec3[]{axises[0],axises[1],axises[2]}, new Ivec3[]{axises[0],axises[2],axises[1]},
-        new Ivec3[]{axises[1],axises[0],axises[2]}, new Ivec3[]{axises[1],axises[2],axises[0]},
-        new Ivec3[]{axises[2],axises[0],axises[1]}, new Ivec3[]{axises[2],axises[1],axises[0]},
-    };
+    private static readonly int[] SIGNS = new int[] { 1, -1 };
+    // positive axis
+    private static readonly Ivec3 X = new(1, 0, 0);
+    private static readonly Ivec3 Y = new(0, 1, 0);
+    private static readonly Ivec3 Z = new(0, 0, 1);
+    // unsigned cones
+    private static readonly UCone XYZ = new(X, Y, Z, 1, 0); // TODO move to an enum?
+    private static readonly UCone XZY = new(X, Z, Y, 0, 1); // TODO add a (1,2,3) sig for order?
+    private static readonly UCone YXZ = new(Y, X, Z, 0, 0);
+    private static readonly UCone YZX = new(Y, Z, X, 0, 1);
+    private static readonly UCone ZXY = new(Z, X, Y, 1, 1);
+    private static readonly UCone ZYX = new(Z, Y, X, 1, 0);
+    private static readonly UCone[] UCONES = new UCone[] { XYZ, XZY, YXZ, YZX, ZXY, ZYX, };
+    // all 48 signed cones
+    private static readonly Cone[] CONES = GenCones();
+
+    private static Cone[] GenCones() {
+        Cone[] ncones = new Cone[48];
+        int index = 0;
+        foreach (UCone ucone in UCONES) {
+            foreach (int s1 in SIGNS) {
+                foreach (int s2 in SIGNS) {
+                    foreach (int s3 in SIGNS) { // 48 variations
+                        Ivec3 v1 = ucone.axis1 * s1;
+                        Ivec3 v2 = ucone.axis2 * s2;
+                        Ivec3 v3 = ucone.axis3 * s3;
+                        ncones[index] = new Cone(v1, v2, v3, ucone.edge1, ucone.edge2, 0 < s2, 0 < s3);
+                        index++;
+                    }
+                }
+            }
+        }
+        return ncones;
+    }
+
 
 
     private static readonly IWorldSettings settings = new WorldSettings1();
@@ -42,8 +73,7 @@ public class MidPlusLightEngine {
     }
 
 
-    public void AsyncComputeVisibilityMap(Ivec3 source, Vec3 emit) {
-
+    public void AsyncTraceAllCones(Ivec3 source, Vec3 emit) {
         var adjs = world.Adjacency[source];
         Ivec3 filter = new(0) {
             X = adjs.Get(0) - adjs.Get(3),
@@ -52,97 +82,79 @@ public class MidPlusLightEngine {
         };
         if (world.Occupancy[source]) { filter = new(0); }
 
-        //List<long> ids = new(48);
-
         using CountdownEvent cdevent = new(48);
-        foreach (Ivec3[] combo in combos) {
-            foreach (int s1 in signs) {
-                foreach (int s2 in signs) {
-                    foreach (int s3 in signs) { //48 variations
-                        Ivec3 v1 = combo[0] * s1;
-                        Ivec3 v2 = combo[1] * s2;
-                        Ivec3 v3 = combo[2] * s3;
-                        ThreadPool.QueueUserWorkItem(delegate {
-                            IterateInCone(source, emit, filter, v1, v2, v3);
-                            cdevent.Signal();
-                        });
-
-                        //IterateInCone(source, emit, filter, v1, v2, v3);
-                        //long id = WorkerThreadPool.AddTask(Callable.From(() => IterateInCone(source, emit, filter, v1, v2, v3)));
-                        //ids.Add(id);
-                    }
-                }
-            }
+        foreach (Cone cone in CONES) {// 48 times
+            ThreadPool.QueueUserWorkItem(delegate {
+                TraceCone(source, emit, filter, cone);
+                cdevent.Signal();
+            });
         }
         cdevent.Wait();
-
-
-        //GD.Print($"waiting on {ids.Count} cones");
-        //foreach (var id in ids) {
-        //    WorkerThreadPool.WaitForTaskCompletion(id);
-        //}
-        //return vmap;
     }
 
-    // v1,v2,v3 are (1,0,0),(0,1,0),(0,0,1) in any order possible (or negative)
-    public void IterateInCone(Ivec3 source, Vec3 emit, Ivec3 filter, Ivec3 v1, Ivec3 v2, Ivec3 v3) {
+    public void TraceCone(Ivec3 source, Vec3 emit, Ivec3 filter, Cone cone) {
         Ivec3 mins = settings.TotalMins - source; //world negative bound (included)
         Ivec3 maxs = settings.TotalMaxs - source; //world positive bound (included)
 
         //select mins or max based on if vn is positive or negative, then pick the one corresponding to the right axis
-        int bound1 = ((v1 <= 0) ? -mins : maxs).Pick(v1);
-        int bound2 = ((v2 <= 0) ? -mins : maxs).Pick(v2);
-        int bound3 = ((v3 <= 0) ? -mins : maxs).Pick(v3);
+        int bound1 = ((cone.axis1 <= 0) ? -mins : maxs).Pick(cone.axis1);
+        int bound2 = ((cone.axis2 <= 0) ? -mins : maxs).Pick(cone.axis2);
+        int bound3 = ((cone.axis3 <= 0) ? -mins : maxs).Pick(cone.axis3);
 
         //store the visibility values
-        float[,] vbuffer = new float[Math.Min(bound1, bound2) + 1, Math.Min(bound1, bound3) + 1];
+        float[,] vbuffer = new float[Math.Min(bound1, bound2) + 1 + 1, Math.Min(bound1, bound3) + 1 + 1];
         vbuffer[0, 0] = 1; //the source
 
-        for (int it1 = 1; it1 <= bound1; it1++) { //start at 1 to skip source
-            Ivec3 vit1 = v1 * it1;
-            float it1inv = 1f / it1;
+        for (int it1 = 0; it1 <= bound1; it1++) { //start at 1 to skip source
+            Ivec3 vit1 = cone.axis1 * it1;
+            float it1inv = 1f / (it1 + 1);
+            bool planevisi = false;
             for (int it2 = Math.Min(bound2, it1); 0 <= it2; it2--) {// start from the end to handle neigbors replacement easily
-                Ivec3 vit2 = v2 * it2 + vit1;
+                Ivec3 vit2 = cone.axis2 * it2 + vit1;
                 for (int it3 = Math.Min(bound3, it2); 0 <= it3; it3--) { //same than it2
-                    Ivec3 sdist = v3 * it3 + vit2; //signed distance
+                    Ivec3 sdist = cone.axis3 * it3 + vit2; //signed distance
                     Ivec3 xyz = source + sdist; //world position
                     (int wind, int cind) = WorldDataVec3.StaticDeconstructPosToIndex(xyz); //optimization shenanigans,tldr wind,cind is xyz
 
-                    if (world.Occupancy[wind, cind]) {
+                    float visi = vbuffer[it2, it3];
+                    if (visi == 0) {
                         vbuffer[it2, it3] = 0;
                         continue;
                     }
+                    planevisi = true;
+
+                    if (world.Occupancy[wind, cind] && it1 != 0) {
+                        vbuffer[it2, it3] = 0;
+                        continue;
+                    }
+
                     //weights
-                    int b1 = it1 - it2;
-                    int b2 = it2 - it3;
-                    int b3 = it3;
-                    // b1+b2+b3=it1
+                    int w1 = it1 + 1 - it2;
+                    int w2 = it2 + 1 - it3;
+                    int w3 = it3 + 1;
 
-                    //neigbors * their weights
-                    float nb1 = (b1 == 0) ? 0 : (vbuffer[it2, it3] * b1);
-                    float nb2 = (b2 == 0) ? 0 : (vbuffer[it2 - 1, it3] * b2);
-                    float nb3 = (b3 == 0) ? 0 : (vbuffer[it2 - 1, it3 - 1] * b3);
+                    vbuffer[it2, it3] = visi * w1 * it1inv;
+                    vbuffer[it2 + 1, it3] += visi * w2 * it1inv;
+                    vbuffer[it2 + 1, it3 + 1] += visi * w3 * it1inv;
 
-                    //interpolating. it1inv is 1/(b1+b2+b3)
-                    float visi = (nb1 + nb2 + nb3) * it1inv;
-                    vbuffer[it2, it3] = visi; //replace the nb1 neigbor (as it wont be used anymore)
 
-                    if (visi == 0) { continue; }
                     // end visibility computation, light effects start here
-                    //reduce the values at the edge to compensate for them being done again by other cones
-                    float edgecoef = 1f;
-                    if (b1 == 0) { edgecoef *= 0.5f; }
-                    if (b2 == 0) { edgecoef *= 0.5f; }
-                    if (b3 == 0) { edgecoef *= 0.5f; }
-                    if (b2 == 0 && b3 == 0) { edgecoef *= 0.5f; }
+
+                    if (it1 == 0) { continue; }
+
+                    //avoid duplicated edges
+                    if ((it1 == it2 && cone.edge1) || (it2 == it3 && cone.edge2) || (it2 == 0 && cone.qedge2) || (it3 == 0 && cone.qedge3)) {
+                        continue;
+                    }
 
                     //get light exposure value and add it to the world
-                    var adjs = world.Adjacency[wind, cind];
-                    if (adjs.IsEmpty()) { continue; }
-                    float bestlambert = GetBestLambert(adjs, sdist, filter);
-                    currentmap[wind, cind] += visi * emit * bestlambert / (sdist.Square().Sum() + 1) * edgecoef;
+                    //var adjs = world.Adjacency[wind, cind];
+                    //if (adjs.IsEmpty()) { continue; }
+                    float bestlambert = 1;// GetBestLambert(adjs, sdist, filter);
+                    currentmap[wind, cind] += visi * emit * bestlambert / (sdist.Square().Sum() + 1);
                 }
             }
+            if (!planevisi) { break; }
         }
     }
 
@@ -188,21 +200,32 @@ public class MidPlusLightEngine {
         world.Occupancy[new(+73, +12, 13)] = true;
         world.Occupancy[new(-50, -18, -3)] = true;
 
+        Stopwatch sw = new();
+        int count = 0;
+
         GD.Print("starting the light computation");
         while (true) {
             GD.Print("finding next sources");
             List<UpdateRequest> requests = GetNextTopSource();
             if (requests.Count == 0) { break; }
+            sw.Start();
             foreach (var request in requests) {
-                GD.Print("computing lighting from a source");
-                AsyncComputeVisibilityMap(request.Source, request.Emit);
+                //GD.Print("computing lighting from a source");
+                AsyncTraceAllCones(request.Source, request.Emit);
+                count++;
             }
+            sw.Stop();
+            if (2000 <= count) { break; }
 
             if (!Enabled) { return; }
             GD.Print("preparing layers update");
-            engine.PrepareColorLayers(currentmap);
+            WorkerThreadPool.AddTask(Callable.From(() => engine.PrepareColorLayers(currentmap)));
+            //engine.PrepareColorLayers(currentmap);
         }
         GD.Print("no more sources");
+        float millis = sw.ElapsedMilliseconds;
+        float avg = millis / count;
+        GD.Print($"{count} source done over {settings.TotalSize.X}*{settings.TotalSize.Y}*{settings.TotalSize.Z} scene in {millis}ms (average {avg:0.000}ms)");
     }
 
     public void Stop() {
@@ -212,7 +235,6 @@ public class MidPlusLightEngine {
     }
 
     public List<UpdateRequest> GetNextTopSource() {
-        float[] top = new float[] { 0.15f };
         List<UpdateRequest> norders = new();
         currentmap.ForAll((xyz) => {
             currentmap.DeconstructPosToIndex(xyz, out var wind, out var cind);
@@ -233,19 +255,30 @@ public class MidPlusLightEngine {
             }
 
             float emax = emit.Max();
-            if (top[0] * 0.5 <= emax) {
-                if (top[0] <= emax) {
-                    top[0] = Math.Max(top[0], emax);
-                }
+            if (0.1 <= emax) {
                 updatemap[wind, cind] = currentmap[wind, cind];
                 norders.Add(new(xyz, emit));
             }
         });
-        return norders.OrderBy((o) => -o.Emit.Max()).Take(4).ToList();
+        return norders.OrderBy((o) => -o.Emit.Max()).Take(30).ToList();
     }
 
     public record class UpdateRequest(Ivec3 Source, Vec3 Emit);
 
     public static Vec3 RandomColor() => new(GD.Randf(), GD.Randf(), GD.Randf());
+}
+
+
+
+public record struct Cone(// signed iteration cone
+        Ivec3 axis1, Ivec3 axis2, Ivec3 axis3, //
+        bool edge1, bool edge2, // diagonal edges priorities
+        bool qedge2, bool qedge3 // quadrant edges priorities
+) { }
+
+public record struct UCone(Ivec3 axis1, Ivec3 axis2, Ivec3 axis3, bool edge1, bool edge2) { // unsigned cone
+
+    public UCone(Ivec3 naxis1, Ivec3 naxis2, Ivec3 naxis3, int nedge1, int nedge2) : this(naxis1, naxis2, naxis3, nedge1 == 0, nedge2 == 0) { }
+
 }
 
