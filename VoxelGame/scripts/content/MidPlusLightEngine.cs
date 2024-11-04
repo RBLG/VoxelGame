@@ -50,7 +50,7 @@ public class MidPlusLightEngine {
         return ncones;
     }
 
-
+    private const float INV_255 = 1 / 255f;
 
     private static readonly IWorldSettings settings = new WorldSettings1();
     private readonly World world;
@@ -98,14 +98,16 @@ public class MidPlusLightEngine {
         int bound3 = ((cone.axis3 <= 0) ? -mins : maxs).Pick(cone.axis3);
 
         //store the visibility values
-        float[,] vbuffer = new float[Math.Min(bound1, bound2) + 1 + 1, Math.Min(bound1, bound3) + 1 + 1];
-        vbuffer[0, 0] = 1; // the source (1,0,0) neigbor
-        vbuffer[1, 0] = 1; // the (1,1,0) neigbor
-        vbuffer[1, 1] = 1; // the (1,1,1) neigbor
+        int width = Math.Min(bound1, bound2) + 2;
+        int height = Math.Min(bound1, Math.Min(bound2, bound3)) + 2;
+        byte[,] vbuffer = new byte[width, height];
+        vbuffer[0, 0] = 255; // the source (1,0,0) neigbor
+        vbuffer[1, 0] = 255; // the (1,1,0) neigbor
+        vbuffer[1, 1] = 255; // the (1,1,1) neigbor
 
         for (int it1 = 1; it1 <= bound1; it1++) { //start at 1 to skip source
             Ivec3 vit1 = cone.axis1 * it1;
-            float it1inv = 1f / (it1 + 1);
+            float totinv = 1f / (it1 + 1);
             bool planevisi = false;
             for (int it2 = Math.Min(bound2, it1); 0 <= it2; it2--) {// start from the end to handle neigbors replacement easily
                 Ivec3 vit2 = cone.axis2 * it2 + vit1;
@@ -126,7 +128,7 @@ public class MidPlusLightEngine {
                     //avoid duplicated edges and avoid redoing the source
                     if ((it1 == it2 && cone.edge1) || (it2 == it3 && cone.edge2) || (it2 == 0 && cone.qedge2) || (it3 == 0 && cone.qedge3)) {
                     } else {
-                        ApplyVisibility(wind, cind, visi, emit, sdist, filter);
+                        ApplyVisibility(wind, cind, visi * INV_255, emit, sdist, filter);
                     }
 
                     //weights
@@ -134,11 +136,11 @@ public class MidPlusLightEngine {
                     int w2 = it2 + 1 - it3;
                     int w3 = it3 + 1;
 
-                    visi *= it1inv;
+                    visi *= totinv;
                     //apply to next neigbors
-                    vbuffer[it2, it3] = visi * w1;
-                    vbuffer[it2 + 1, it3] += visi * w2;
-                    vbuffer[it2 + 1, it3 + 1] += visi * w3;
+                    vbuffer[it2, it3] = (byte)(visi * w1);
+                    vbuffer[it2 + 1, it3] += (byte)(visi * w2);
+                    vbuffer[it2 + 1, it3 + 1] += (byte)(visi * w3);
                 }
             }
             if (!planevisi) { break; }
@@ -150,7 +152,7 @@ public class MidPlusLightEngine {
     public void ApplyVisibility(int wind, int cind, float visi, Vec3 emit, Ivec3 sdist, Ivec3 filter) {
         //var adjs = world.Adjacency[wind, cind];
         //if (adjs.IsEmpty()) { return; }
-        float bestlambert = 1;// GetBestLambert(adjs, sdist, filter);
+        float bestlambert = 0.5f;// GetBestLambert(adjs, sdist, filter);
         currentmap[wind, cind] += visi * emit * bestlambert / (sdist.Square().Sum() + 1);
     }
 
