@@ -225,7 +225,7 @@ public class MidPlusLightEngine {
         GD.Print("no more sources");
         float millis = sw.ElapsedMilliseconds;
         float avg = millis / count;
-        GD.Print($"{count} source done over {settings.TotalSize.X}*{settings.TotalSize.Y}*{settings.TotalSize.Z} scene in {millis}ms (average {avg:0.000}ms)");
+        GD.Print($"{count} sources done over {settings.TotalSize.X}*{settings.TotalSize.Y}*{settings.TotalSize.Z} scene in {millis}ms (average {avg:0.000}ms)");
     }
 
     public void Stop() {
