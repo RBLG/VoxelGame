@@ -1,15 +1,37 @@
 <Project Sdk="Godot.NET.Sdk/4.3.0">
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
-    <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net8.0</TargetFramework>
     <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'ios' ">net8.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
+	<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+	
+    <!--Enable NativeAOT-->
+    <PublishAot>true</PublishAot>
+	
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <Optimize>True</Optimize>
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+    <IsAotCompatible>True</IsAotCompatible>
+    <IsTrimmable>False</IsTrimmable>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ExportDebug|AnyCPU'">
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+    <IsAotCompatible>True</IsAotCompatible>
+    <Optimize>True</Optimize>
+    <IsTrimmable>False</IsTrimmable>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ExportRelease|AnyCPU'">
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+    <IsAotCompatible>True</IsAotCompatible>
+    <IsTrimmable>False</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
+	<!-- Root the assemblies to avoid trimming. -->
+    <TrimmerRootAssembly Include="GodotSharp" />
+    <TrimmerRootAssembly Include="$(TargetName)" />
   </ItemGroup>
 </Project>

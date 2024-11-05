@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using System.Threading;
 using voxelgame.scripts;
 using VoxelGame.scripts.common;
@@ -69,7 +70,7 @@ public class MidPlusLightEngine {
     }
 
 
-    public void AsyncTraceAllCones(Ivec3 source, Vec3 emit) {
+    public void AsyncTraceAllCones(Ivec3 source, Vec3 emit, Buffer[] buffers) {
         var adjs = world.Adjacency[source];
         Ivec3 filter = new(0) {
             X = adjs.Get(0) - adjs.Get(3),
@@ -79,16 +80,19 @@ public class MidPlusLightEngine {
         if (world.Occupancy[source]) { filter = new(0); }
 
         using CountdownEvent cdevent = new(48);
+        int it = 0;
         foreach (Cone cone in CONES) {// 48 times
+            Buffer buffer = buffers[it];
             ThreadPool.QueueUserWorkItem(delegate {
-                TraceCone(source, emit, filter, cone);
+                TraceCone(source, emit, filter, cone, buffer);
                 cdevent.Signal();
             });
+            it++;
         }
         cdevent.Wait();
     }
 
-    public void TraceCone(Ivec3 source, Vec3 emit, Ivec3 filter, Cone cone) {
+    public void TraceCone(Ivec3 source, Vec3 emit, Ivec3 filter, Cone cone, Buffer buffprov) {
         Ivec3 mins = settings.TotalMins - source; //world negative bound (included)
         Ivec3 maxs = settings.TotalMaxs - source; //world positive bound (included)
 
@@ -100,10 +104,15 @@ public class MidPlusLightEngine {
         //store the visibility values
         int width = Math.Min(bound1, bound2) + 2;
         int height = Math.Min(bound1, Math.Min(bound2, bound3)) + 2;
-        byte[,] vbuffer = new byte[width, height];
-        vbuffer[0, 0] = 255; // the source (1,0,0) neigbor
-        vbuffer[1, 0] = 255; // the (1,1,0) neigbor
-        vbuffer[1, 1] = 255; // the (1,1,1) neigbor
+        int length = Math.Max(0,width * height);
+        /*ulong maxval = (ulong)nuint.MaxValue;
+        if ((maxval) < (ulong)length || length < 0) {
+            throw new Exception("aaaaaaaah!");
+        }*/
+        Span<byte> vbuffer = buffprov.Slice((nuint)length);//stackalloc byte[width * height];
+        vbuffer[AsIndex(height, 0, 0)] = 255; // the source (1,0,0) neigbor
+        vbuffer[AsIndex(height, 1, 0)] = 255; // the (1,1,0) neigbor
+        vbuffer[AsIndex(height, 1, 1)] = 255; // the (1,1,1) neigbor
 
         for (int it1 = 1; it1 <= bound1; it1++) { //start at 1 to skip source
             Ivec3 vit1 = cone.axis1 * it1;
@@ -116,11 +125,11 @@ public class MidPlusLightEngine {
                     Ivec3 xyz = source + sdist; //world position
                     (int wind, int cind) = WorldDataVec3.StaticDeconstructPosToIndex(xyz); //optimization shenanigans,tldr wind,cind is xyz
 
-                    float visi = vbuffer[it2, it3];
+                    float visi = vbuffer[AsIndex(height, it2, it3)];
                     if (visi == 0) { continue; }
 
                     if (world.Occupancy[wind, cind]) {
-                        vbuffer[it2, it3] = 0;
+                        vbuffer[AsIndex(height, it2, it3)] = 0;
                         continue;
                     }
                     planevisi = true;
@@ -138,16 +147,16 @@ public class MidPlusLightEngine {
 
                     visi *= totinv;
                     //apply to next neigbors
-                    vbuffer[it2, it3] = (byte)(visi * w1);
-                    vbuffer[it2 + 1, it3] += (byte)(visi * w2);
-                    vbuffer[it2 + 1, it3 + 1] += (byte)(visi * w3);
+                    vbuffer[AsIndex(height, it2, it3)] = (byte)(visi * w1);
+                    vbuffer[AsIndex(height, it2 + 1, it3)] += (byte)(visi * w2);
+                    vbuffer[AsIndex(height, it2 + 1, it3 + 1)] += (byte)(visi * w3);
                 }
             }
             if (!planevisi) { break; }
         }
     }
 
-    public static int XyToIndex(int x, int y, int height) => x * height + y;
+    public static int AsIndex(int height, int x, int y) => x * height + y; //BitOperations.LeadingZeroCount(height);
 
     public void ApplyVisibility(int wind, int cind, float visi, Vec3 emit, Ivec3 sdist, Ivec3 filter) {
         //var adjs = world.Adjacency[wind, cind];
@@ -199,6 +208,8 @@ public class MidPlusLightEngine {
         Stopwatch sw = new();
         int count = 0;
 
+        Buffer[] buffers = Buffer.News(48, 261 * 261);
+
         GD.Print("starting the light computation");
         while (true) {
             GD.Print("finding next sources");
@@ -207,7 +218,7 @@ public class MidPlusLightEngine {
             sw.Start();
             foreach (var request in requests) {
                 //GD.Print("computing lighting from a source");
-                AsyncTraceAllCones(request.Source, request.Emit);
+                AsyncTraceAllCones(request.Source, request.Emit, buffers);
                 count++;
             }
             sw.Stop();
@@ -218,6 +229,8 @@ public class MidPlusLightEngine {
             WorkerThreadPool.AddTask(Callable.From(() => engine.PrepareColorLayers(currentmap)));
             //engine.PrepareColorLayers(currentmap);
         }
+        Buffer.DisposeAll(buffers);
+
         GD.Print("no more sources");
         float millis = sw.ElapsedMilliseconds;
         float avg = millis / count;
@@ -259,7 +272,7 @@ public class MidPlusLightEngine {
         return norders.OrderBy((o) => -o.Emit.Max()).Take(30).ToList();
     }
 
-    public record class UpdateRequest(Ivec3 Source, Vec3 Emit);
+    public record struct UpdateRequest(Ivec3 Source, Vec3 Emit);
 }
 
 
