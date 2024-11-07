@@ -16,7 +16,7 @@ using Vec3 = Vector3T<float>;
 using WorldDataVec3 = FastWorldData<WorldSettings1, Vector3T<float>>;
 
 public class MidPlusLightEngine {
-    private static readonly int[] SIGNS = new int[] { 1, -1 };
+    private static readonly int[] SIGNS = [1, -1];
     // positive axis
     private static readonly Ivec3 X = new(1, 0, 0);
     private static readonly Ivec3 Y = new(0, 1, 0);
@@ -28,7 +28,7 @@ public class MidPlusLightEngine {
     private static readonly UCone YZX = new(Y, Z, X, 0, 1);
     private static readonly UCone ZXY = new(Z, X, Y, 1, 1);
     private static readonly UCone ZYX = new(Z, Y, X, 1, 0);
-    private static readonly UCone[] UCONES = new UCone[] { XYZ, XZY, YXZ, YZX, ZXY, ZYX, };
+    private static readonly UCone[] UCONES = [XYZ, XZY, YXZ, YZX, ZXY, ZYX,];
     // all 48 signed cones
     private static readonly Cone[] CONES = GenCones();
 
@@ -104,15 +104,13 @@ public class MidPlusLightEngine {
         //store the visibility values
         int width = Math.Min(bound1, bound2) + 2;
         int height = Math.Min(bound1, Math.Min(bound2, bound3)) + 2;
-        int length = Math.Max(0,width * height);
-        /*ulong maxval = (ulong)nuint.MaxValue;
-        if ((maxval) < (ulong)length || length < 0) {
-            throw new Exception("aaaaaaaah!");
-        }*/
-        Span<byte> vbuffer = buffprov.Slice((nuint)length);//stackalloc byte[width * height];
-        vbuffer[AsIndex(height, 0, 0)] = 255; // the source (1,0,0) neigbor
-        vbuffer[AsIndex(height, 1, 0)] = 255; // the (1,1,0) neigbor
-        vbuffer[AsIndex(height, 1, 1)] = 255; // the (1,1,1) neigbor
+        int length = Math.Max(0, width * height);
+
+        Span<byte> vbuffer = buffprov.Slice((nuint)length);
+        vbuffer.Clear();
+        vbuffer[0] = 255; // the source (1,0,0) neigbor
+        vbuffer[height] = 255; // the (1,1,0) neigbor
+        vbuffer[height + 1] = 255; // the (1,1,1) neigbor
 
         for (int it1 = 1; it1 <= bound1; it1++) { //start at 1 to skip source
             Ivec3 vit1 = cone.axis1 * it1;
@@ -121,15 +119,17 @@ public class MidPlusLightEngine {
             for (int it2 = Math.Min(bound2, it1); 0 <= it2; it2--) {// start from the end to handle neigbors replacement easily
                 Ivec3 vit2 = cone.axis2 * it2 + vit1;
                 for (int it3 = Math.Min(bound3, it2); 0 <= it3; it3--) { //same than it2
+
+                    int index = it2 * height + it3;
+                    float visi = vbuffer[index];
+                    if (visi == 0) { continue; }
+
                     Ivec3 sdist = cone.axis3 * it3 + vit2; //signed distance
                     Ivec3 xyz = source + sdist; //world position
                     (int wind, int cind) = WorldDataVec3.StaticDeconstructPosToIndex(xyz); //optimization shenanigans,tldr wind,cind is xyz
 
-                    float visi = vbuffer[AsIndex(height, it2, it3)];
-                    if (visi == 0) { continue; }
-
                     if (world.Occupancy[wind, cind]) {
-                        vbuffer[AsIndex(height, it2, it3)] = 0;
+                        vbuffer[index] = 0;
                         continue;
                     }
                     planevisi = true;
@@ -147,9 +147,9 @@ public class MidPlusLightEngine {
 
                     visi *= totinv;
                     //apply to next neigbors
-                    vbuffer[AsIndex(height, it2, it3)] = (byte)(visi * w1);
-                    vbuffer[AsIndex(height, it2 + 1, it3)] += (byte)(visi * w2);
-                    vbuffer[AsIndex(height, it2 + 1, it3 + 1)] += (byte)(visi * w3);
+                    vbuffer[index] = (byte)(visi * w1);
+                    vbuffer[index + height] += (byte)(visi * w2);
+                    vbuffer[index + height + 1] += (byte)(visi * w3);
                 }
             }
             if (!planevisi) { break; }

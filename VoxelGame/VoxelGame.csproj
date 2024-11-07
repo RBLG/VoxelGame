@@ -8,25 +8,25 @@
 	<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 	
     <!--Enable NativeAOT-->
-    <PublishAot>true</PublishAot>
+    <PublishAot>false</PublishAot>
 	
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <Optimize>True</Optimize>
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
-    <IsAotCompatible>True</IsAotCompatible>
-    <IsTrimmable>False</IsTrimmable>
+    <IsAotCompatible>False</IsAotCompatible>
+    <IsTrimmable>True</IsTrimmable>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ExportDebug|AnyCPU'">
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
-    <IsAotCompatible>True</IsAotCompatible>
+    <IsAotCompatible>False</IsAotCompatible>
     <Optimize>True</Optimize>
-    <IsTrimmable>False</IsTrimmable>
+    <IsTrimmable>True</IsTrimmable>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ExportRelease|AnyCPU'">
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
-    <IsAotCompatible>True</IsAotCompatible>
-    <IsTrimmable>False</IsTrimmable>
+    <IsAotCompatible>False</IsAotCompatible>
+    <IsTrimmable>True</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
