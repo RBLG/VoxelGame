@@ -19,7 +19,7 @@ public struct Buffer : IDisposable {
 
     public Span<byte> Slice(nuint size) {
         unsafe {
-            if (size > capacity) {
+            if (capacity < size) {
                 buffer = (byte*)NativeMemory.AlignedRealloc(buffer, size, 1);
                 capacity = size;
             }
@@ -27,7 +27,7 @@ public struct Buffer : IDisposable {
         }
     }
 
-    public void Dispose() {
+    public readonly void Dispose() {
         unsafe {
             NativeMemory.AlignedFree(buffer);
         }
