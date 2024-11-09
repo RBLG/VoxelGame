@@ -1,5 +1,6 @@
 ﻿using Godot;
-using VoxelGame.scripts.common;
+using VoxelGame.scripts.common.arrays;
+using VoxelGame.scripts.common.math;
 
 namespace VoxelGame.scripts.content;
 public class WorldGenerator1 {

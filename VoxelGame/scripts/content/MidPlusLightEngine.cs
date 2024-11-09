@@ -7,6 +7,8 @@ using System.Numerics;
 using System.Threading;
 using voxelgame.scripts;
 using VoxelGame.scripts.common;
+using VoxelGame.scripts.common.math;
+using VoxelGame.scripts.content.worlddata;
 
 namespace VoxelGame.scripts.content;
 
@@ -69,7 +71,7 @@ public class MidPlusLightEngine {
     }
 
 
-    public void AsyncTraceAllCones(Ivec3 source, Vec3 emit, Buffer[] buffers) {
+    public void AsyncTraceAllCones(Ivec3 source, Vec3 emit, ByteBuffer[] buffers) {
         var adjs = world.Adjacency[source];
         Ivec3 filter = new(0) {
             X = adjs.Get(0) - adjs.Get(3),
@@ -81,7 +83,7 @@ public class MidPlusLightEngine {
         using CountdownEvent cdevent = new(48);
         int it = 0;
         foreach (Cone cone in CONES) {// 48 times
-            Buffer buffer = buffers[it];
+            ByteBuffer buffer = buffers[it];
             ThreadPool.QueueUserWorkItem(delegate {
                 TraceCone(source, emit, filter, cone, buffer);
                 cdevent.Signal();
@@ -91,7 +93,7 @@ public class MidPlusLightEngine {
         cdevent.Wait();
     }
 
-    public void TraceCone(Ivec3 source, Vec3 emit, Ivec3 filter, Cone cone, Buffer buffprov) {
+    public void TraceCone(Ivec3 source, Vec3 emit, Ivec3 filter, Cone cone, ByteBuffer buffprov) {
         var occupancy = world.Occupancy;
 
         Ivec3 mins = settings.TotalMins - source; //world negative bound (included)
@@ -216,7 +218,7 @@ public class MidPlusLightEngine {
         Stopwatch sw = new();
         int count = 0;
 
-        Buffer[] buffers = Buffer.News(48, 162 * 1620);
+        ByteBuffer[] buffers = ByteBuffer.News(48, 162 * 1620);
 
         GD.Print("starting the light computation");
         while (true) {
@@ -237,7 +239,7 @@ public class MidPlusLightEngine {
             WorkerThreadPool.AddTask(Callable.From(() => engine.PrepareColorLayers(currentmap)));
             //engine.PrepareColorLayers(currentmap);
         }
-        Buffer.DisposeAll(buffers);
+        ByteBuffer.DisposeAll(buffers);
 
         GD.Print("no more sources");
         float millis = sw.ElapsedMilliseconds;

@@ -2,7 +2,9 @@ using Godot;
 using System;
 using System.Collections.Concurrent;
 using VoxelGame.scripts.common;
+using VoxelGame.scripts.common.math;
 using VoxelGame.scripts.content;
+using VoxelGame.scripts.content.worlddata;
 
 namespace voxelgame.scripts;
 

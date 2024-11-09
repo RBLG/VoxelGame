@@ -1,5 +1,4 @@
-﻿
-using VoxelGame.scripts.common;
+﻿using VoxelGame.scripts.common.arrays;
 
 namespace VoxelGameTest.scripts.common;
 

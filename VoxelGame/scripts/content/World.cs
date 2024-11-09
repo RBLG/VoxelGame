@@ -1,6 +1,8 @@
 using Godot;
 using System;
 using VoxelGame.scripts.common;
+using VoxelGame.scripts.common.math;
+using VoxelGame.scripts.content.worlddata;
 
 namespace VoxelGame.scripts.content;
 

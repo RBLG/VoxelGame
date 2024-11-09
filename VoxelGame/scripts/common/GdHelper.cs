@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VoxelGame.scripts.common.math;
 
 namespace VoxelGame.scripts.common;
 public static class GdHelper {
